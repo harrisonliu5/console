@@ -229,6 +229,7 @@ export const ICON_TYPES = {
   network: 'eip-group',
   networkpolicies: 'firewall',
   namespacenetworkpolicies: 'firewall',
+  cluster: 'cluster',
 }
 
 export const MODULE_KIND_MAP = {
