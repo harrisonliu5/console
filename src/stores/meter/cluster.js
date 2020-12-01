@@ -147,18 +147,18 @@ export default class ClusterMeter extends Base {
     ...params
   }) => {
     const PARAMS_CONFIG = {
-      cluster: globals.app.isMultiCluster
+      cluster: !globals.app.isMultiCluster
         ? [{ page: 1, limit: -1 }]
         : [
             {
               page: 1,
               limit: -1,
-              labelSelector: `cluster-role.kubesphere.io/${cluster}`,
+              labelSelector: `cluster-role.kubesphere.io/host`,
             },
             {
               page: 1,
               limit: -1,
-              labelSelector: `!cluster-role.kubesphere.io/${cluster}`,
+              labelSelector: `!cluster-role.kubesphere.io/host`,
             },
           ],
       nodes: [{ limit: -1, page: 1, cluster }],
@@ -231,7 +231,7 @@ export default class ClusterMeter extends Base {
 
   getListConfig = type => {
     const LIST_CONFIG = {
-      cluster: globals.app.isMultiCluster
+      cluster: !globals.app.isMultiCluster
         ? [
             {
               status: item => (item.isReady ? 'ready' : 'stop'),
@@ -398,7 +398,6 @@ export default class ClusterMeter extends Base {
               this.filterListByType({ type, ...rest })(item))
           ) {
             const { status, desc } = listConfig[index]
-
             data.push({
               icon: ICON_TYPES[type],
               name: item.name,

@@ -56,9 +56,11 @@ export default class MeterStore extends base {
 
   get tenantUrl() {
     if (globals.app.isMultiCluster && this.cluster) {
-      return `kapis/clusrers/${this.cluster}/tenant.kubesphere.io/v1alpha2/meterings`
+      return `kapis/clusters/${
+        this.cluster
+      }/tenant.kubesphere.io/v1alpha2/metering`
     }
-    return 'kapis/tenant.kubesphere.io/v1alpha2/meterings'
+    return 'kapis/tenant.kubesphere.io/v1alpha2/metering'
   }
 
   get mapper() {
@@ -501,7 +503,7 @@ export default class MeterStore extends base {
     })
 
     if (filter.operation || filter.module === 'namespaces') {
-      url = this.tentUrl
+      url = `${this.tenantUrl}s`
 
       params = this.getExportParams({
         ...resource,
@@ -573,7 +575,6 @@ export default class MeterStore extends base {
   @action
   fetchPrice = async () => {
     const url = `${this.tenantUrl}/price_info`
-
     const result = await request.get(url)
 
     if (result && !isEmpty(result)) {
