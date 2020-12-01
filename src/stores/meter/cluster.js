@@ -147,18 +147,20 @@ export default class ClusterMeter extends Base {
     ...params
   }) => {
     const PARAMS_CONFIG = {
-      cluster: [
-        {
-          page: 1,
-          limit: -1,
-          labelSelector: `cluster-role.kubesphere.io/${cluster}`,
-        },
-        {
-          page: 1,
-          limit: -1,
-          labelSelector: `!cluster-role.kubesphere.io/${cluster}`,
-        },
-      ],
+      cluster: globals.app.isMultiCluster
+        ? [{ page: 1, limit: -1 }]
+        : [
+            {
+              page: 1,
+              limit: -1,
+              labelSelector: `cluster-role.kubesphere.io/${cluster}`,
+            },
+            {
+              page: 1,
+              limit: -1,
+              labelSelector: `!cluster-role.kubesphere.io/${cluster}`,
+            },
+          ],
       nodes: [{ limit: -1, page: 1, cluster }],
       workspaces: [
         {
@@ -229,16 +231,23 @@ export default class ClusterMeter extends Base {
 
   getListConfig = type => {
     const LIST_CONFIG = {
-      cluster: [
-        {
-          status: item => (item.isReady ? 'ready' : 'stop'),
-          desc: 'Host Cluster',
-        },
-        {
-          status: item => (item.isReady ? 'ready' : 'stop'),
-          desc: 'Member Cluster',
-        },
-      ],
+      cluster: globals.app.isMultiCluster
+        ? [
+            {
+              status: item => (item.isReady ? 'ready' : 'stop'),
+              desc: 'Host Cluster',
+            },
+          ]
+        : [
+            {
+              status: item => (item.isReady ? 'ready' : 'stop'),
+              desc: 'Host Cluster',
+            },
+            {
+              status: item => (item.isReady ? 'ready' : 'stop'),
+              desc: 'Member Cluster',
+            },
+          ],
       nodes: [
         {
           status: item => getNodeStatus(item),
