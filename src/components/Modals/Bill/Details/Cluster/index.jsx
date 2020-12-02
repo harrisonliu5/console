@@ -19,7 +19,16 @@
 import React from 'react'
 import { observer } from 'mobx-react'
 import { action, observable, toJS } from 'mobx'
-import { cloneDeep, get, isArray, isEmpty, last, flatten, set } from 'lodash'
+import {
+  cloneDeep,
+  get,
+  isArray,
+  isEmpty,
+  last,
+  flatten,
+  set,
+  isUndefined,
+} from 'lodash'
 import { saveAs } from 'file-saver'
 import classnames from 'classnames'
 
@@ -185,6 +194,12 @@ export default class Details extends React.Component {
     })
   }
 
+  handleStrTimeToX = strTime => {
+    return !isUndefined(strTime) && typeof strTime === 'string'
+      ? getLocalTime(strTime).format('X') * 1000
+      : undefined
+  }
+
   @action
   getCurrentMeterData = async ({
     name,
@@ -208,7 +223,7 @@ export default class Details extends React.Component {
       valueKey: 'currentMeterData',
       meters: 'all',
       resources: [name],
-      start: getLocalTime(start).format('X') * 1000,
+      start: this.handleStrTimeToX(start),
       isTime,
       params,
     })
@@ -295,7 +310,7 @@ export default class Details extends React.Component {
         meters: 'all',
         module: parentType.type,
         resources: [parentType.name],
-        start: getLocalTime(createTime).format('X') * 1000,
+        start: this.handleStrTimeToX(createTime),
         valueKey: 'parentMeterData',
         isTime: true,
       })
@@ -564,7 +579,7 @@ export default class Details extends React.Component {
       name,
       type,
       isCopy: true,
-      start: getLocalTime(createTime).format('X') * 1000,
+      start: this.handleStrTimeToX(createTime),
       isTime: true,
       createTime,
       labelSelector: get(currentData, 'labelSelector', ''),
@@ -802,7 +817,7 @@ export default class Details extends React.Component {
         params,
         meters: 'all',
         module: parentData.type,
-        start: getLocalTime(parentData.createTime).format('X') * 1000,
+        start: this.handleStrTimeToX(parentData.createTime),
         resources: [parentData.name],
         valueKey: 'parentMeterData',
         isTime: true,
@@ -860,7 +875,7 @@ export default class Details extends React.Component {
                 <SideCard
                   key={`${item.name}-${item.type}`}
                   data={item}
-                  activeName={this.active.name}
+                  active={toJS(this.active)}
                   getCurrentMeterData={this.handleSelectResource}
                   getChildrenData={this.getChildrenData}
                   getCheckData={this.getCheckData}
@@ -936,7 +951,11 @@ export default class Details extends React.Component {
   }
 
   renderSubResource = () => {
-    if (this.active.type === 'pods' || this.props.meterType === 'openpitrix') {
+    if (
+      this.active.type === 'pods' ||
+      this.props.meterType === 'openpitrix' ||
+      isUndefined(this.currentMeterData.sumData)
+    ) {
       return null
     }
 

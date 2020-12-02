@@ -18,21 +18,20 @@
 import React, { Component } from 'react'
 import { Select } from '@pitrix/lego-ui'
 
-import { isEmpty } from 'lodash'
+import { isEmpty, get } from 'lodash'
 import SideCard from '../SideCard'
 import styles from './index.scss'
 import { METER_RESOURCE_USAGE_TITLE } from '../../constats'
 
 export default class ResourceList extends Component {
-  componentDidMount() {}
-
   state = {
     value: 'cpu',
   }
 
   componentDidUpdate(prevProps) {
     if (this.props.activeName !== prevProps.activeName) {
-      this.setState({ value: 'cpu' })
+      const option = this.getOptions()
+      this.setState({ value: get(option, '[0].value') })
     }
   }
 

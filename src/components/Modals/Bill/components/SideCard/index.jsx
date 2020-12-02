@@ -21,12 +21,12 @@ import { Icon, Checkbox } from '@pitrix/lego-ui'
 import classnames from 'classnames'
 import { Text, Indicator, Tag } from 'components/Base'
 
-import { get } from 'lodash'
+import { get, isEmpty } from 'lodash'
 import styles from './index.scss'
 
 export default function Card({
   data,
-  activeName,
+  active = {},
   getCurrentMeterData,
   getChildrenData,
   getCheckData,
@@ -36,7 +36,10 @@ export default function Card({
   isCheck,
 }) {
   const { icon, status, desc, name, type, selector, createTime } = data
-  const active = activeName === name
+  const isActive = !isEmpty(active)
+    ? name === active.name && type === active.type
+    : false
+
   const isLast = type === 'pods'
 
   const handleChildrenClick = (e, value) => {
@@ -66,7 +69,7 @@ export default function Card({
   return (
     <div
       className={classnames(styles.billCard, {
-        [styles.selected]: active,
+        [styles.selected]: isActive,
         [styles.noHover]: noIcon,
       })}
       style={style}
@@ -93,7 +96,7 @@ export default function Card({
       <div className={styles.info}>
         <div className={styles.title}>
           <Indicator type={status} className={styles.indicator} />
-          <Icon name={icon} size={40} type={active ? 'light' : 'dark'} />
+          <Icon name={icon} size={40} type={isActive ? 'light' : 'dark'} />
         </div>
         <div className={styles.desc}>
           <Text title={name} description={desc} />
@@ -114,7 +117,7 @@ export default function Card({
         >
           <Icon
             name="chevron-right"
-            type={active ? 'light' : 'dark'}
+            type={isActive ? 'light' : 'dark'}
             size={20}
           />
         </div>

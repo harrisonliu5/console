@@ -72,14 +72,16 @@ export default class TimeSelect extends React.Component {
     const timeFormat =
       cookie('lang') === 'zh' ? 'YYYY年MM月DD日 HH:mm' : 'MMM DD, YYYY HH:mm'
 
-    const createTimeStr = getLocalTime(createTime).format(timeFormat)
+    const createTimeStr = createTime
+      ? getLocalTime(createTime).format(timeFormat)
+      : undefined
 
     return (
       <ul className={styles.datepicker}>
         <li>
           <div>{t('Reconciliation Cycle')}</div>
           <p>
-            {t('Create Time')}: {createTimeStr}
+            {createTimeStr ? `${t('Create Time')}: ${createTimeStr}` : null}
           </p>
         </li>
         <li>
