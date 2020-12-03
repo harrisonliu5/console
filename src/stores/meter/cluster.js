@@ -23,7 +23,6 @@ import ClusterStore from 'stores/cluster'
 import NodeStore from 'stores/node'
 import WorkspaceStore from 'stores/workspace'
 import NamespaceStore from 'stores/project'
-// import ApplicationStore from 'stores/openpitrix/application'
 import ApplicationCrdStore from 'stores/application/crd'
 
 import ServiceStore from 'stores/service'
@@ -313,10 +312,7 @@ export default class ClusterMeter extends Base {
   filterListByType = ({ type, ...params }) => {
     if (
       params.applications &&
-      (type === 'services' ||
-        type === 'deployments' ||
-        type === 'statefulsets' ||
-        type === 'pods')
+      (type === 'services' || type === 'deployments' || type === 'statefulsets')
     ) {
       return item => {
         const opLabel = get(item, "labels['app.kubernetes.io/instance']", '')
@@ -330,42 +326,53 @@ export default class ClusterMeter extends Base {
       }
     }
 
+    const handleFilterPodsParent = parent => {
+      return item => {
+        const instanceLabel = get(
+          item,
+          'labels["app.kubernetes.io/instance"]',
+          ''
+        )
+        const appLabel = get(item, 'labels.app', '')
+        let otherLabe = false
+        if (instanceLabel) {
+          otherLabe = parent.indexOf(instanceLabel) > -1
+        }
+
+        const isParent = item.name.indexOf(parent) > -1
+
+        return (
+          instanceLabel === parent ||
+          appLabel === parent ||
+          otherLabe ||
+          isParent
+        )
+      }
+    }
+
     if (
-      params.services &&
-      (type === 'deployments' || type === 'statefulsets' || type === 'pods')
+      type === 'services' ||
+      type === 'deployments' ||
+      type === 'statefulsets'
     ) {
       return item => {
         const appLabel = get(item, 'labels.app', '')
-        return appLabel === params.services
+        return !appLabel
       }
     }
 
-    if (type === 'services') {
-      return item => {
-        const opLabel = get(item, "labels['app.kubernetes.io/instance']", '')
-        const nameLabel = get(item, "labels['app.kubernetes.io/name']", '')
-        const app = get(item, 'app', '')
-        return !nameLabel && !app && !opLabel
-      }
+    if (params.services && type === 'pods') {
+      return handleFilterPodsParent(params.services)
     }
 
-    if (type === 'deployments' || type === 'statefulsets') {
-      return item => {
-        const app = get(item, 'app', '')
-        const label = get(item, 'labels.app', '')
-        return !app && !label
-      }
+    if (params.deployments && type === 'pods') {
+      return handleFilterPodsParent(params.deployments)
     }
 
-    if (type === 'pods') {
-      return item => {
-        const nameLabel = get(item, "labels['app.kubernetes.io/name']", '')
-        const app = get(item, 'app', '')
-        const versionLabel = get(item, 'labels.version', '')
-        const jobKind = get(item, 'labels.job-name')
-        return !jobKind && !app && !versionLabel && !nameLabel
-      }
+    if (params.statefulsets && type === 'pods') {
+      return handleFilterPodsParent(params.statefulsets)
     }
+
     return () => true
   }
 

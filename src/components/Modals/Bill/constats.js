@@ -20,16 +20,6 @@ export const CARD_CONFIG = [
       'PROJECT_CONSUMPTION_DESC',
     ],
   },
-  // {
-  //   icon: 'openpitrix',
-  //   subTitle: 'APP_CONSUMPTION_DESC',
-  //   type: 'openpitrix',
-  //   desc: 'APP_RESOURCE_CONSUMPTION_DESC',
-  //   infos: [
-  //     'APP_WORKSPACE_CONSUMPTION_DESC',
-  //     'APP_WORKSPACE_PROJECT_CONSUMPTION_DESC',
-  //   ],
-  // },
 ]
 
 export const RESOURCES_METER_TYPE = {
@@ -86,7 +76,6 @@ export const METER_RESOURCE_USAGE_TITLE = {
 export const MERTER_TYPE = Object.keys(METER_RESOURCE_USAGE_TITLE)
 
 export const LEVEL_CONFIG = {
-  // openpitrix: [],
   workspaces: [
     {
       type: 'workspaces',
@@ -94,29 +83,23 @@ export const LEVEL_CONFIG = {
     },
     {
       type: 'namespaces',
-      children: [
-        'applications',
-        'services',
-        'deployments',
-        'statefulsets',
-        'pods',
-      ],
+      children: ['applications', 'services', 'deployments', 'statefulsets'],
       parent: ['workspaces'],
     },
     {
       type: 'applications',
-      children: ['services'],
+      children: ['services', 'deployments', 'statefulsets'],
       parent: ['namespaces'],
     },
     {
       type: 'services',
-      children: ['deployments', 'statefulsets'],
+      children: ['pods'],
       parent: ['applications', 'namespaces'],
     },
     {
       type: ['deployments', 'statefulsets'],
       children: ['pods'],
-      parent: ['services', 'namespaces'],
+      parent: ['applications', 'namespaces'],
     },
     {
       type: 'pods',

@@ -622,21 +622,25 @@ export default class Details extends React.Component {
 
     RESOURCES_TYPE.forEach(itemType => {
       const list = []
+
       nameList.forEach(item => {
         if (item.type === itemType) {
           list.push(item)
         }
       })
+
       if (!isEmpty(list)) {
         dataList.push(list)
       }
     })
 
-    dataList.forEach(async lists => {
-      const customChartData = []
+    const customChartData = []
 
+    for await (const lists of dataList) {
       const type = lists[0].type
+
       if (type === 'pods') {
+        let customItemChartData = []
         const podList = lists.map(item => item.name)
         const _params = cloneDeep(params)
         _params[type] = lists[0].name
@@ -649,17 +653,18 @@ export default class Details extends React.Component {
         })
 
         if (!isEmpty(meterData)) {
-          this.customChartData = meterData.map(item => {
+          customItemChartData = meterData.map(item => {
             return {
               name: get(item, `metric.${item.module}`),
               size: get(item, 'sum_value'),
             }
           })
         }
+        customChartData.push(customItemChartData)
       } else {
-        lists.forEach(async _item => {
-          const parentName = { name: _item.name, type: _item.type }
+        for await (const _item of lists) {
           const requestList = []
+          const customItemChartData = []
 
           requestList.push(
             this.getChildrenList({
@@ -671,7 +676,6 @@ export default class Details extends React.Component {
 
           const grandesonListData = await Promise.all(requestList)
           const _grandesonListData = flatten(grandesonListData)
-
           const requestMeterLists = []
 
           if (!isEmpty(_grandesonListData)) {
@@ -684,6 +688,7 @@ export default class Details extends React.Component {
                   list.push(item)
                 }
               })
+
               if (!isEmpty(list)) {
                 _datalist.push(list)
               }
@@ -709,7 +714,7 @@ export default class Details extends React.Component {
 
             const grandesonMeterDataList = await Promise.all(requestMeterLists)
             const _grandesonMeterDataList = flatten(grandesonMeterDataList)
-
+            const parentName = { name: _item.name, type: _item.type }
             parentName.children = []
 
             _grandesonMeterDataList &&
@@ -720,12 +725,14 @@ export default class Details extends React.Component {
                 })
               })
 
-            customChartData.push(parentName)
+            customItemChartData.push(parentName)
           }
-          this.customChartData = customChartData
-        })
+
+          customChartData.push(customItemChartData)
+        }
       }
-    })
+    }
+    this.customChartData = flatten(customChartData)
   }
 
   handlePieChartData = (namesList, dataList) => {
