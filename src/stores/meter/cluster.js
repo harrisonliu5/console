@@ -17,7 +17,7 @@
  */
 
 import { action, observable } from 'mobx'
-import { isArray, isEmpty, get } from 'lodash'
+import { isArray, isEmpty, get, cloneDeep } from 'lodash'
 
 import ClusterStore from 'stores/cluster'
 import NodeStore from 'stores/node'
@@ -29,9 +29,8 @@ import ServiceStore from 'stores/service'
 import WorkloadStore from 'stores/workload'
 import PodStore from 'stores/pod'
 
-import { ICON_TYPES, API_VERSIONS } from 'utils/constants'
+import { ICON_TYPES } from 'utils/constants'
 import { RESOURCE_TITLE } from 'components/Modals/Bill/constats'
-import ObjectMapper from 'utils/object.mapper'
 
 import { getNodeStatus } from 'utils/node'
 import { getWorkloadStatus } from 'utils/status'
@@ -101,11 +100,6 @@ export default class ClusterMeter extends Base {
     return path
   }
 
-  getUrl = ({ module, ...params }) => {
-    const apiversion = API_VERSIONS[module]
-    return `${apiversion}/${this.getPath({ ...params })}/${module}`
-  }
-
   store = {
     cluster: this.clusterStore,
     nodes: this.nodeStore,
@@ -120,10 +114,6 @@ export default class ClusterMeter extends Base {
 
   getStore = type => {
     return this.store[type]
-  }
-
-  setMapper = module => {
-    return ObjectMapper[module] || (data => data)
   }
 
   handleLabelSelector = params => {
@@ -222,6 +212,11 @@ export default class ClusterMeter extends Base {
           namespace: namespaces,
           labelSelector: this.handleLabelSelector(params.labelSelector),
           nodeName: params.nodes,
+          ownerKind: params.statefulsets
+            ? 'StatefulSet'
+            : params.deployments
+            ? 'ReplicaSet'
+            : undefined,
         },
       ],
     }
@@ -315,38 +310,7 @@ export default class ClusterMeter extends Base {
       (type === 'services' || type === 'deployments' || type === 'statefulsets')
     ) {
       return item => {
-        const opLabel = get(item, "labels['app.kubernetes.io/instance']", '')
-        const appLabel = get(item, 'labels.app', '')
-        const opNameLabel = get(item, "labels['app.kubernetes.io/name']", '')
-        return (
-          opLabel === params.applications ||
-          appLabel === params.applications ||
-          opNameLabel === params.applications
-        )
-      }
-    }
-
-    const handleFilterPodsParent = parent => {
-      return item => {
-        const instanceLabel = get(
-          item,
-          'labels["app.kubernetes.io/instance"]',
-          ''
-        )
-        const appLabel = get(item, 'labels.app', '')
-        let otherLabe = false
-        if (instanceLabel) {
-          otherLabe = parent.indexOf(instanceLabel) > -1
-        }
-
-        const isParent = item.name.indexOf(parent) > -1
-
-        return (
-          instanceLabel === parent ||
-          appLabel === parent ||
-          otherLabe ||
-          isParent
-        )
+        return item.app === params.applications
       }
     }
 
@@ -355,25 +319,63 @@ export default class ClusterMeter extends Base {
       type === 'deployments' ||
       type === 'statefulsets'
     ) {
-      return item => {
-        const appLabel = get(item, 'labels.app', '')
-        return !appLabel
-      }
+      return item => !item.app
     }
 
-    if (params.services && type === 'pods') {
-      return handleFilterPodsParent(params.services)
-    }
-
-    if (params.deployments && type === 'pods') {
-      return handleFilterPodsParent(params.deployments)
-    }
-
-    if (params.statefulsets && type === 'pods') {
-      return handleFilterPodsParent(params.statefulsets)
+    if (
+      (params.services || params.deployments || params.statefulsets) &&
+      type === 'pods' &&
+      isEmpty(params.labelSelector)
+    ) {
+      return () => false
     }
 
     return () => true
+  }
+
+  filterSamePodsWorkload = async ({ type, data, ...rest }) => {
+    if (type === 'deployments' || type === 'statefulsets') {
+      const workloadData = []
+
+      data.forEach(item => {
+        workloadData.push({
+          name: item.name,
+          labelSelector: item.labelSelector,
+        })
+      })
+
+      if (isEmpty(workloadData)) {
+        return data
+      }
+
+      const serviceRequestList = []
+
+      workloadData.forEach(item => {
+        serviceRequestList.push(
+          this.serviceStore.fetchListByK8s({
+            cluster: rest.cluster,
+            namespace: rest.namespaces,
+            module: 'services',
+            labelSelector: this.handleLabelSelector(item.labelSelector),
+          })
+        )
+      })
+
+      const servicesList = await Promise.all(serviceRequestList)
+      let result = cloneDeep(data)
+
+      if (!isEmpty(servicesList)) {
+        servicesList.forEach(serviceList => {
+          if (!isEmpty(serviceList)) {
+            serviceList.forEach(service => {
+              result = result.filter(_data => _data.name !== service.name)
+            })
+          }
+        })
+      }
+      return result
+    }
+    return data
   }
 
   @action
@@ -405,6 +407,7 @@ export default class ClusterMeter extends Base {
               this.filterListByType({ type, ...rest })(item))
           ) {
             const { status, desc } = listConfig[index]
+
             data.push({
               icon: ICON_TYPES[type],
               name: item.name,
@@ -419,7 +422,9 @@ export default class ClusterMeter extends Base {
         })
       })
     }
-    this.list = data
-    return data
+
+    const result = this.filterSamePodsWorkload({ type, data, ...rest })
+    this.list = result
+    return result
   }
 }

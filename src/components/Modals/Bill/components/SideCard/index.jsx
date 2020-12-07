@@ -35,7 +35,7 @@ export default function Card({
   loading,
   isCheck,
 }) {
-  const { icon, status, desc, name, type, selector, createTime } = data
+  const { icon, status, desc, name, type, labelSelector, createTime } = data
   const isActive = !isEmpty(active)
     ? name === active.name && type === active.type
     : false
@@ -80,7 +80,7 @@ export default function Card({
               name,
               type,
               createTime,
-              labelSelector: selector,
+              labelSelector,
             })
       }}
     >
@@ -111,7 +111,7 @@ export default function Card({
               name,
               type,
               createTime,
-              labelSelector: selector,
+              labelSelector,
             })
           }
         >

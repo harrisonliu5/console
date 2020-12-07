@@ -616,7 +616,7 @@ export default class Details extends React.Component {
       return {
         name: item.name,
         type: item.type,
-        labelSelector: get(item, '[0].labelSelector'),
+        labelSelector: get(item, 'labelSelector'),
       }
     })
 

@@ -18,7 +18,7 @@
 import React, { Component } from 'react'
 import { Select } from '@pitrix/lego-ui'
 
-import { isEmpty, get } from 'lodash'
+import { isEmpty, get, isEqual } from 'lodash'
 import SideCard from '../SideCard'
 import styles from './index.scss'
 import { METER_RESOURCE_USAGE_TITLE } from '../../constats'
@@ -29,7 +29,10 @@ export default class ResourceList extends Component {
   }
 
   componentDidUpdate(prevProps) {
-    if (this.props.activeName !== prevProps.activeName) {
+    if (
+      this.props.activeName !== prevProps.activeName ||
+      !isEqual(this.props.selectOptions, prevProps.selectOptions)
+    ) {
       const option = this.getOptions()
       this.setState({ value: get(option, '[0].value') })
     }
