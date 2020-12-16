@@ -523,4 +523,7 @@ module.exports = {
 
   EVENT_AGE: 'Age',
   EVENT_FROM: 'From',
+
+  Bill: 'Medição e faturamento',
+  BILLING_OPERATING_DESC: 'Check Consumption',
 }
