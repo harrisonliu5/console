@@ -74,14 +74,14 @@ export default class TimeSelect extends React.Component {
 
     const createTimeStr = createTime
       ? getLocalTime(createTime).format(timeFormat)
-      : undefined
+      : '-'
 
     return (
       <ul className={styles.datepicker}>
         <li>
           <div>{t('Reconciliation Cycle')}</div>
           <p>
-            {createTimeStr ? `${t('Create Time')}: ${createTimeStr}` : null}
+            {t('Create Time')}: {createTimeStr}
           </p>
         </li>
         <li>

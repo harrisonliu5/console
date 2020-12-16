@@ -26,7 +26,7 @@ import styles from './index.scss'
 
 export default function Card({
   data,
-  active = {},
+  active,
   getCurrentMeterData,
   getChildrenData,
   getCheckData,
@@ -36,9 +36,9 @@ export default function Card({
   isCheck,
 }) {
   const { icon, status, desc, name, type, labelSelector, createTime } = data
-  const isActive = !isEmpty(active)
-    ? name === active.name && type === active.type
-    : false
+  const isActive = isEmpty(active)
+    ? false
+    : active.name === name && active.type === type
 
   const isLast = type === 'pods'
 

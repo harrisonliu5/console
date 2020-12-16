@@ -48,7 +48,7 @@ export const RESOURCE_TITLE = {
   nodes: 'Cluster Nodes',
   pods: 'Pods',
   openpitrix: 'App Templates',
-  applications: 'App Store',
+  applications: 'Composing App',
   deployments: 'Deployments',
   statefulsets: 'StatefulSets',
   workspaces: 'Workspaces',
@@ -119,4 +119,12 @@ export const FEE_CONFIG = {
   ingress_network_traffic_per_giagabytes_per_hour: 'net_received',
   mem_per_gigabytes_per_hour: 'memory',
   pvc_per_gigabytes_per_hour: 'disk',
+}
+
+export const METER_RESOURCE_USAGE = {
+  cpu: 'cpu_usage',
+  memory: 'memory_usage_wo_cache',
+  net_received: 'net_bytes_received',
+  net_transmitted: 'net_bytes_transmitted',
+  disk: 'pvc_bytes_total',
 }

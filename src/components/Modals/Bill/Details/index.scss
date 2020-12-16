@@ -14,7 +14,7 @@
 
 .billDetail {
   height: 100%;
-  margin-top: -12px;
+  width: 100%;
   display: flex;
   overflow: hidden;
 
@@ -25,12 +25,13 @@
   .leftContent {
     width: 480px;
     height: 100%;
-    padding: 0 20px 120px;
+    padding: 40px 20px 120px;
     position: relative;
     background-color: $light-color02;
 
     .crumbContainer {
       min-height: 20px;
+      padding-top: 12px;
       margin-bottom: 20px;
       display: flex;
 
@@ -45,6 +46,10 @@
         & + button {
           margin-left: 4px;
         }
+
+        & > span {
+          width: 20px;
+        }
       }
 
       .crumb {
@@ -54,8 +59,14 @@
         color: $dark-color06;
         flex-wrap: wrap;
 
+        & > div {
+          display: flex;
+        }
+
         .crumbTitle {
-          width: 5px;
+          max-width: 80px;
+          margin-left: 3px;
+          cursor: default;
           @include ellipsis;
         }
       }
@@ -90,31 +101,47 @@
   }
 
   .rightContent {
-    width: 100%;
+    width: calc(100% - 480px);
     height: 100%;
-    overflow-y: auto;
-    overflow-x: hidden;
+    padding: 66px 20px 33px 40px;
+    background: white;
+
+    :global {
+      .spin-nested-loading {
+        width: 100%;
+        height: 100%;
+
+        .spin-container {
+          width: 100%;
+          height: 100%;
+        }
+      }
+    }
+
+    .title {
+      height: 32px;
+      margin-bottom: 20px;
+      padding-right: 20px;
+      display: flex;
+
+      h2 {
+        font-size: 24px;
+        font-weight: $font-bold;
+        flex: 5 1 auto;
+      }
+
+      .clusterSelect {
+        width: 105px;
+        margin-right: 10px;
+      }
+    }
 
     .content {
       width: 100%;
-      padding: 10px 40px 0;
-
-      .title {
-        height: 32px;
-        margin-bottom: 20px;
-        display: flex;
-
-        h2 {
-          font-size: 24px;
-          font-weight: $font-bold;
-          flex: 5 1 auto;
-        }
-
-        .clusterSelect {
-          width: 105px;
-          margin-right: 10px;
-        }
-      }
+      height: calc(100% - 65px);
+      padding-right: 20px;
+      overflow-y: auto;
+      overflow-x: hidden;
 
       .toothbg {
         width: 100%;
@@ -186,9 +213,21 @@
 .childrenResourceContainer {
   width: 100%;
   height: 400px;
-  background: $light-color02;
-  padding: 12px;
-  display: flex;
+
+  :global {
+    .spin-nested-loading {
+      width: 100%;
+      height: 100%;
+    }
+
+    .spin-container {
+      width: 100%;
+      height: 100%;
+      background: $light-color02;
+      padding: 12px;
+      display: flex;
+    }
+  }
 
   .childrenlistContainer {
     flex: 1 1 auto;
@@ -198,7 +237,7 @@
     }
   }
 
-  .customContainer {
+  .constomChartContainer {
     width: 500px;
     height: 100%;
     flex: 2 1 auto;
@@ -206,5 +245,6 @@
     display: flex;
     justify-content: center;
     align-items: center;
+    padding: 0 5px;
   }
 }

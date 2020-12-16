@@ -43,13 +43,14 @@ import ClusterMeterStore from 'stores/meter/cluster'
 import { getAreaChartOps, getValueByUnit } from 'utils/monitoring'
 import { ICON_TYPES, COLORS_MAP } from 'utils/constants'
 
-import { getLocalTime } from 'utils'
+import { handleWSChartData, handleStrTimeToX } from 'utils/meter'
+
 import {
   RESOURCES_TYPE,
   RESOURCE_TITLE,
   METER_RESOURCE_TITLE,
 } from '../../constats'
-import ConstomChart from '../../components/PieChart'
+import ConstomChart from '../../components/ConstomChart'
 import TimeSelect from '../../components/TimeSelect'
 import SideCard from '../../components/SideCard'
 import ResourceList from '../../components/ResourceList'
@@ -92,9 +93,6 @@ export default class Details extends React.Component {
   sideLoading = false
 
   @observable
-  reportsData = {}
-
-  @observable
   crumbData = []
 
   @observable
@@ -129,6 +127,12 @@ export default class Details extends React.Component {
 
   @observable
   billReportList = []
+
+  @observable
+  price_config = {}
+
+  @observable
+  resourceLoading = false
 
   initData = async () => {
     this.loading = true
@@ -167,6 +171,8 @@ export default class Details extends React.Component {
       start: createTime,
     })
 
+    this.price_config = await this.store.fetchPrice()
+
     this.sideLoading = false
     this.loading = false
   }
@@ -175,7 +181,7 @@ export default class Details extends React.Component {
     this.initData()
   }
 
-  handleSelectResource = ({ name, type, ...params }) => {
+  handleSelectResource = async ({ name, type, ...params }) => {
     if (name === this.active.name && type === this.active.type) {
       return
     }
@@ -185,19 +191,13 @@ export default class Details extends React.Component {
       this.cluster = get(this.clusters, '[0].value', '')
     }
 
-    this.getCurrentMeterData({
+    await this.getCurrentMeterData({
       name,
       type,
       isTime: true,
       start: params.createTime,
       ...params,
     })
-  }
-
-  handleStrTimeToX = strTime => {
-    return !isUndefined(strTime) && typeof strTime === 'string'
-      ? getLocalTime(strTime).format('X') * 1000
-      : undefined
   }
 
   @action
@@ -223,12 +223,16 @@ export default class Details extends React.Component {
       valueKey: 'currentMeterData',
       meters: 'all',
       resources: [name],
-      start: this.handleStrTimeToX(start),
+      start: handleStrTimeToX(start),
       isTime,
       params,
     })
 
-    this.tableData = this.initChart(meterData)
+    this.tableData = this.setLineChartColor(meterData)
+
+    if (type === 'cluster' || type === 'workspaces') {
+      this.price_config = await this.store.fetchPrice()
+    }
 
     this.setAreaChartData({
       data: meterData,
@@ -239,6 +243,7 @@ export default class Details extends React.Component {
         labelSelector,
         currentType: type,
       })
+
       this.childrenResourceList = childrenList
 
       if (!isEmpty(toJS(this.tableData))) {
@@ -310,7 +315,7 @@ export default class Details extends React.Component {
         meters: 'all',
         module: parentType.type,
         resources: [parentType.name],
-        start: this.handleStrTimeToX(createTime),
+        start: handleStrTimeToX(createTime),
         valueKey: 'parentMeterData',
         isTime: true,
       })
@@ -394,6 +399,7 @@ export default class Details extends React.Component {
     })
 
     const { sumData, feeData } = this.getSumMeterData(result)
+
     this[valueKey] = {
       sumData,
       feeData,
@@ -401,7 +407,7 @@ export default class Details extends React.Component {
     return result
   }
 
-  initChart = list => {
+  setLineChartColor = list => {
     if (isEmpty(list)) {
       return []
     }
@@ -419,11 +425,7 @@ export default class Details extends React.Component {
   setAreaChartData = async ({ data }) => {
     this.chartData.loading = true
 
-    const price_config = await this.clusterMeterStore.fetchPrice({
-      cluster: this.cluster,
-    })
-
-    if (isEmpty(data) || isEmpty(price_config)) {
+    if (isEmpty(data) || isEmpty(this.price_config)) {
       this.chartData = { loading: false }
       return
     }
@@ -435,7 +437,7 @@ export default class Details extends React.Component {
           value === '-1' ? null : getValueByUnit(value, item.unit)
 
         const valueConvertedByPrice =
-          valueConvertedByUnit * price_config[item.type]
+          valueConvertedByUnit * this.price_config[item.type]
 
         set(_item, [1], valueConvertedByPrice)
 
@@ -477,13 +479,13 @@ export default class Details extends React.Component {
       params,
     })
 
-    this.tableData = this.initChart(data)
+    this.tableData = this.setLineChartColor(data)
     this.setAreaChartData({ data })
     this.chartData.loading = false
   }
 
   fetchMeterData = async ({ module, meters, resources, ...params }) => {
-    const data = await this.clusterMeterStore.fetchMeter({
+    const data = await this.store.fetchMeter({
       module,
       meters,
       resources,
@@ -495,7 +497,6 @@ export default class Details extends React.Component {
   getMeterParamsByCrumb = () => {
     const params = {}
     const list = cloneDeep(toJS(this.crumbData))
-
     if (list[0].type === 'workspaces' && list.length > 2) {
       list.shift()
     }
@@ -553,6 +554,11 @@ export default class Details extends React.Component {
     let childrenList = []
 
     if (currentType === 'namespaces' || currentType === 'services') {
+      currentType === 'namespaces' &&
+      !this.clusterMeterStore.levelMeterData[resourceParams.namespaces]
+        ? await this.clusterMeterStore.fetchLevelMeter({ ...resourceParams })
+        : null
+
       childrenList = await this.getTypesListData(currentType, resourceParams)
       return childrenList
     }
@@ -579,7 +585,7 @@ export default class Details extends React.Component {
       name,
       type,
       isCopy: true,
-      start: this.handleStrTimeToX(createTime),
+      start: handleStrTimeToX(createTime),
       isTime: true,
       createTime,
       labelSelector: get(currentData, 'labelSelector', ''),
@@ -606,10 +612,8 @@ export default class Details extends React.Component {
     })
   }
 
-  getResourceMeterData = async meters => {
+  getClusterMeterChartData = async meters => {
     const params = this.getMeterParamsByCrumb()
-    params.workspaces = undefined
-
     const dataList = []
 
     const nameList = this.childrenResourceList.map(item => {
@@ -640,7 +644,7 @@ export default class Details extends React.Component {
       const type = lists[0].type
 
       if (type === 'pods') {
-        let customItemChartData = []
+        const customItemChartData = []
         const podList = lists.map(item => item.name)
         const _params = cloneDeep(params)
         _params[type] = lists[0].name
@@ -653,10 +657,18 @@ export default class Details extends React.Component {
         })
 
         if (!isEmpty(meterData)) {
-          customItemChartData = meterData.map(item => {
-            return {
-              name: get(item, `metric.${item.module}`),
-              size: get(item, 'sum_value'),
+          lists.forEach(item => {
+            const meter = meterData.find(itemMeterData => {
+              const name = get(itemMeterData, `metric.${itemMeterData.module}`)
+              return name === item.name
+            })
+            if (meter) {
+              const size = get(meter, 'sum_value')
+              const name = get(meter, `metric.${meter.module}`)
+              customItemChartData.push({
+                name,
+                size: size || 0,
+              })
             }
           })
         }
@@ -707,7 +719,6 @@ export default class Details extends React.Component {
                   meters: [meters],
                   resources: _nameList,
                   params: _params,
-                  list: this.childrenResourceList,
                 })
               )
             })
@@ -717,17 +728,28 @@ export default class Details extends React.Component {
             const parentName = { name: _item.name, type: _item.type }
             parentName.children = []
 
-            _grandesonMeterDataList &&
-              _grandesonMeterDataList.forEach(meterData => {
-                parentName.children.push({
-                  name: get(meterData, `metric.${meterData.module}`),
-                  size: get(meterData, 'sum_value'),
-                })
+            _datalist[0].forEach(item => {
+              const meter = _grandesonMeterDataList.find(itemMeterData => {
+                const name = get(
+                  itemMeterData,
+                  `metric.${itemMeterData.module}`
+                )
+                return name === item.name
               })
+              if (meter) {
+                const size = get(meter, 'sum_value')
+                const name = get(meter, `metric.${meter.module}`)
+                parentName.children.push({
+                  name,
+                  size: size || 0,
+                })
+              }
+            })
 
-            customItemChartData.push(parentName)
+            if (!isEmpty(parentName.children)) {
+              customItemChartData.push(parentName)
+            }
           }
-
           customChartData.push(customItemChartData)
         }
       }
@@ -735,46 +757,79 @@ export default class Details extends React.Component {
     this.customChartData = flatten(customChartData)
   }
 
-  handlePieChartData = (namesList, dataList) => {
-    if (isEmpty(dataList)) {
-      return []
-    }
-
-    namesList.forEach(nameData => {
-      let name = nameData.name
-      const type = nameData.type
-
-      if (type === 'applications') {
-        const data = this.childrenResourceList.find(
-          _itemList => _itemList.name === name
-        )
-
-        const applicationsVersion =
-          get(data, '_origin.version.name', '') ||
-          get(data, '_origin.version', '')
-
-        name = `${name}${applicationsVersion ? `:${applicationsVersion}` : ''}`
+  getWorkspacesMeterChartData = async meters => {
+    this.customChartData = []
+    const params = this.getMeterParamsByCrumb()
+    const nameList = this.childrenResourceList.map(item => {
+      return {
+        name: item.name,
+        type: item.type,
+        labelSelector: get(item, 'labelSelector'),
       }
+    })
 
-      dataList.forEach(data => {
-        const metric = data.metric
-        if (!isEmpty(metric)) {
-          Object.keys(metric).forEach(key => {
-            if (name === metric[key]) {
-              data.name = name
-            }
-          })
+    const dataList = []
+    RESOURCES_TYPE.forEach(itemType => {
+      const list = []
+      nameList.forEach(item => {
+        if (item.type === itemType) {
+          list.push(item)
         }
       })
+      if (!isEmpty(list)) {
+        dataList.push(list)
+      }
     })
-    const pieData = dataList.map(data => ({
-      name: data.name,
-      size: data.sum_value,
-      unit: data.unit,
-      dataKey: 'size',
-    }))
 
-    return pieData
+    const type = get(dataList, '0.0.type', '')
+    if (type === 'namespaces') {
+      const levelMeterReqList = []
+      dataList[0].forEach(item => {
+        if (item.type === 'namespaces') {
+          const _params = Object.assign(params, { namespaces: item.name })
+          levelMeterReqList.push(
+            this.clusterMeterStore.fetchLevelMeter({ ..._params })
+          )
+        }
+      })
+
+      const levelMeterDataLists = await Promise.all(levelMeterReqList)
+      const _levelMeterDataLists = flatten(levelMeterDataLists)
+      const levelMeterDataJson = {}
+
+      _levelMeterDataLists.forEach(item => {
+        Object.assign(levelMeterDataJson, item)
+      })
+
+      this.clusterMeterStore.setLevelMeterData(levelMeterDataJson)
+    }
+
+    const { levelMeterData } = this.clusterMeterStore
+    const customChartData = []
+
+    for await (const lists of dataList) {
+      const _type = lists[0].type
+      const customChartItemData = handleWSChartData({
+        lists,
+        levelMeterData,
+        meters,
+        type: _type,
+        params,
+      })
+      customChartData.push(customChartItemData)
+    }
+    this.customChartData = flatten(customChartData)
+  }
+
+  getResourceMeterData = async meters => {
+    const { level } = this.props
+    this.resourceLoading = true
+    if (level[0].type === 'workspaces') {
+      await this.getWorkspacesMeterChartData(meters)
+    } else {
+      await this.getClusterMeterChartData(meters)
+    }
+    this.resourceLoading = false
   }
 
   @action
@@ -824,7 +879,7 @@ export default class Details extends React.Component {
         params,
         meters: 'all',
         module: parentData.type,
-        start: this.handleStrTimeToX(parentData.createTime),
+        start: handleStrTimeToX(parentData.createTime),
         resources: [parentData.name],
         valueKey: 'parentMeterData',
         isTime: true,
@@ -898,18 +953,18 @@ export default class Details extends React.Component {
   }
 
   renderCrumbContainer = () => {
-    const dom = []
+    const container = []
     const length = this.crumbData.length
     this.crumbData.forEach((item, index) => {
-      dom.push(
-        <span key={`${item.name}-${item.type}`}>
+      container.push(
+        <div key={`${item.name}-${item.type}`} title={item.name}>
           <Icon name={ICON_TYPES[item.type]} />
           <span className={styles.crumbTitle}>{item.name}</span>
           {index !== length - 1 ? <Icon name="caret-right" /> : null}
-        </span>
+        </div>
       )
     })
-    return dom
+    return container
   }
 
   renderCrumb = () => {
@@ -927,7 +982,7 @@ export default class Details extends React.Component {
           disabled={this.loading || this.sideLoading}
           onClick={() => this.handleCrumbOperation('front')}
         />
-        <span className={styles.crumb}>{this.renderCrumbContainer()}</span>
+        <div className={styles.crumb}>{this.renderCrumbContainer()}</div>
       </div>
     )
   }
@@ -970,17 +1025,19 @@ export default class Details extends React.Component {
       <>
         <div className={styles.subTitle}>{t('Contains Resources')}</div>
         <div className={styles.childrenResourceContainer}>
-          <div className={styles.childrenlistContainer}>
-            <ResourceList
-              selectOptions={toJS(this.currentMeterData.sumData)}
-              childrenResourceList={this.childrenResourceList}
-              getResourceMeterData={this.getResourceMeterData}
-              activeName={this.active.name}
-            />
-          </div>
-          <div className={styles.customContainer}>
-            <ConstomChart data={toJS(this.customChartData)} />
-          </div>
+          <Loading spinning={this.resourceLoading}>
+            <div className={styles.childrenlistContainer}>
+              <ResourceList
+                selectOptions={toJS(this.currentMeterData.sumData)}
+                childrenResourceList={this.childrenResourceList}
+                getResourceMeterData={this.getResourceMeterData}
+                activeName={this.active.name}
+              />
+            </div>
+            <div className={styles.constomChartContainer}>
+              <ConstomChart data={toJS(this.customChartData)} />
+            </div>
+          </Loading>
         </div>
       </>
     )
@@ -1062,8 +1119,8 @@ export default class Details extends React.Component {
         </div>
         <div className={styles.rightContent}>
           <Loading spinning={this.loading}>
+            {this.renderTitle()}
             <div className={styles.content}>
-              {this.renderTitle()}
               <MeterDetailCard
                 className={styles.toothbg}
                 title={

@@ -16,25 +16,26 @@
  * along with KubeSphere Console.  If not, see <https://www.gnu.org/licenses/>.
  */
 
-import {
-  cloneDeep,
-  forOwn,
-  isArray,
-  isEmpty,
-  get,
-  upperFirst,
-  assign,
-} from 'lodash'
+import { isArray, isEmpty, get, assign } from 'lodash'
 import { action, observable } from 'mobx'
-import { getValueByUnit } from 'utils/monitoring'
-import { getTimeRange, getMinuteValue } from 'stores/monitoring/base'
-import { getLocalTime } from 'utils'
-import ObjectMapper from 'utils/object.mapper'
+
+import {
+  getTimeParams,
+  getMetricsFilters,
+  handleSortBySourceType,
+  handleValueByUnit,
+  handleWorkloadToKind,
+  handleNodeParams,
+  handleLevelParams,
+  fillEmptyMeterValue,
+  getResourceFilters,
+} from 'utils/meter'
+
 import {
   RESOURCES_METER_TYPE,
-  MERTER_TYPE,
   FEE_CONFIG,
 } from 'components/Modals/Bill/constats'
+
 import base from '../base'
 import { getTimeStr } from '../../components/Cards/Monitoring/Controller/TimeSelector/utils'
 
@@ -56,15 +57,9 @@ export default class MeterStore extends base {
 
   get tenantUrl() {
     if (globals.app.isMultiCluster && this.cluster) {
-      return `kapis/clusters/${
-        this.cluster
-      }/tenant.kubesphere.io/v1alpha2/metering`
+      return `kapis/clusters/${this.cluster}/tenant.kubesphere.io/v1alpha2`
     }
-    return 'kapis/tenant.kubesphere.io/v1alpha2/metering'
-  }
-
-  get mapper() {
-    return ObjectMapper[this.module] || (data => data)
+    return 'kapis/tenant.kubesphere.io/v1alpha2'
   }
 
   getPaths({
@@ -109,6 +104,10 @@ export default class MeterStore extends base {
       path += '/nodes'
     }
 
+    if (nodes && pods) {
+      path += `/nodes/${nodes}`
+    }
+
     if (pods) {
       path += `/pods`
     }
@@ -116,123 +115,8 @@ export default class MeterStore extends base {
     return path
   }
 
-  getApi = ({ module, ...parpms }) => {
-    return `${this.apiVersion}${this.getPaths({ module, ...parpms })}`
-  }
-
-  getMeterFilter = type => {
-    const _type = RESOURCES_METER_TYPE[type]
-    const METER_FILTER = {
-      cpu: `meter_${_type}_cpu_usage`,
-      memory:
-        _type === 'cluster' || _type === 'workspace'
-          ? `meter_${_type}_memory_usage`
-          : `meter_${_type}_memory_usage_wo_cache`,
-      net_transmitted: `meter_${_type}_net_bytes_transmitted`,
-      net_received: `meter_${_type}_net_bytes_received`,
-    }
-
-    switch (_type) {
-      case 'cluster':
-      case 'node':
-      case 'workspace':
-      case 'application':
-      case 'namespace':
-        METER_FILTER.disk = `meter_${_type}_pvc_bytes_total`
-        break
-      default:
-        break
-    }
-
-    return filter => {
-      if (filter === 'all') {
-        return METER_FILTER
-      }
-      const meters = {}
-      filter.forEach(_item => {
-        meters[_item] = METER_FILTER[_item]
-      })
-      return meters
-    }
-  }
-
-  getMeterFilterByDic = type => {
-    const _type = RESOURCES_METER_TYPE[type]
-    return {
-      [`meter_${_type}_cpu_usage`]: 'cpu',
-      [`meter_${_type}_memory_usage`]: 'memory',
-      [`meter_${_type}_memory_usage_wo_cache`]: 'memory',
-      [`meter_${_type}_pvc_bytes_total`]: 'disk',
-      [`meter_${_type}_net_bytes_transmitted`]: 'net_transmitted',
-      [`meter_${_type}_net_bytes_received`]: 'net_received',
-    }
-  }
-
-  getFormatTime = (ms, showDay) =>
-    getLocalTime(Number(ms))
-      .format(showDay ? 'YYYY-MM-DD HH:mm' : 'HH:mm:ss')
-      .replace(/:00$/g, '')
-
-  handleValueByUnit = (item, module) => {
-    const data = cloneDeep(item)
-    data.type = this.getMeterFilterByDic(module)[data.type]
-    const unitType =
-      data.type === 'net_received' || data.type === 'net_transmitted'
-        ? 'number'
-        : data.type
-
-    const UNIT_CONFIG = {
-      cpu: 'core',
-      memory: 'Gi',
-      number: 'M',
-      disk: 'GB',
-    }
-
-    const unit = UNIT_CONFIG[unitType]
-
-    Object.keys(data).forEach(key => {
-      if (key.indexOf('_') > -1) {
-        data[key] = getValueByUnit(data[key], unit)
-        data.unit = unit
-      }
-    })
-    return data
-  }
-
-  handleSortBySource = list => {
-    if (isEmpty(list)) {
-      return []
-    }
-
-    let data = cloneDeep(list)
-    if (data.length < 2) {
-      return data
-    }
-
-    MERTER_TYPE.forEach((item, index) => {
-      const tempIndex = data.findIndex(_item => {
-        if (!isEmpty(_item)) {
-          return _item.type === item
-        }
-        return false
-      })
-
-      if (index !== tempIndex && tempIndex >= 0) {
-        const temp = data[tempIndex]
-        data[tempIndex] = data[index]
-        data[index] = temp
-      }
-    })
-
-    data = data.filter(item => !!item)
-    return data
-  }
-
-  handleLevelParams = ({ module }) => {
-    const _module = RESOURCES_METER_TYPE[module]
-    const level = `Level${upperFirst(_module)}`
-
-    return { level }
+  getApi = ({ module, ...params }) => {
+    return `${this.apiVersion}${this.getPaths({ module, ...params })}`
   }
 
   getExportParams = ({
@@ -256,17 +140,17 @@ export default class MeterStore extends base {
   }) => {
     const params = assign(
       { ...rest },
-      this.handleLevelParams({
+      handleLevelParams({
         module,
       }),
-      this.getTimeParams({ isTime, start, end, step }),
-      this.getMetricsFilters({ module, meters }),
-      this.getResourceFilters({
+      getTimeParams({ isTime, start, end, step }),
+      getMetricsFilters({ module, meters }),
+      getResourceFilters({
         module,
         resources,
       }),
-      this.handleWorkloadToKind({ deployments, statefulsets }),
-      this.handleNodeParams({ nodes, pods })
+      handleWorkloadToKind({ deployments, statefulsets }),
+      handleNodeParams({ nodes, pods, resources })
     )
 
     if (!rest.operation) {
@@ -275,80 +159,6 @@ export default class MeterStore extends base {
     params.namespace = namespaces
     params.workspace = workspaces
     return params
-  }
-
-  getTimeParams = ({ isTime, start, end, step = '1h' }) => {
-    const params = {}
-    if (isTime) {
-      let _step = step
-      if (!end || !start) {
-        const timeRange = getTimeRange({ step: getMinuteValue(step) })
-        params.start = timeRange.start
-        params.end = timeRange.end
-      }
-
-      if (start) {
-        params.start = Math.floor(start / 1000)
-      }
-
-      if (end) {
-        params.end = Math.floor(end / 1000)
-      }
-
-      const day = Math.floor((params.end - params.start) / 3600 / 24)
-
-      if (day >= 30) {
-        _step = '1d'
-      }
-      params.step = getMinuteValue(_step)
-    }
-    return { ...params }
-  }
-
-  getMetricsFilters = ({ meters, module }) => {
-    const meterList = []
-
-    if (!isEmpty(meters)) {
-      forOwn(this.getMeterFilter(module)(meters), value => {
-        meterList.push(value)
-      })
-    }
-
-    if (!isEmpty(meterList)) {
-      return { metrics_filter: meterList.join('|') }
-    }
-  }
-
-  getResourceFilters = ({ resources, module }) => {
-    if (!isEmpty(resources)) {
-      const resourcesString = resources.join('|')
-      switch (module) {
-        case 'applications':
-          return { applications: resourcesString }
-        case 'services':
-          return { services: resourcesString }
-        default:
-          return { resources_filter: resources.join('|') }
-      }
-    }
-  }
-
-  handleWorkloadToKind = ({ deployments, statefulsets }) => {
-    const params = {}
-    if (deployments) {
-      params.kind = 'deployments'
-    }
-
-    if (statefulsets) {
-      params.kind = 'statefulsets'
-    }
-    return params
-  }
-
-  handleNodeParams = ({ nodes, pods }) => {
-    if (nodes && pods) {
-      return { node: nodes, resources_filter: undefined }
-    }
   }
 
   getParams = ({
@@ -367,11 +177,11 @@ export default class MeterStore extends base {
   } = {}) => {
     const params = assign(
       rest,
-      this.getTimeParams({ start, end, step, isTime }),
-      this.getMetricsFilters({ module, meters }),
-      this.getResourceFilters({ module, resources }),
-      this.handleWorkloadToKind({ deployments, statefulsets }),
-      this.handleNodeParams({ nodes, pods })
+      getTimeParams({ start, end, step, isTime }),
+      getMetricsFilters({ module, meters }),
+      getResourceFilters({ module, resources }),
+      handleWorkloadToKind({ deployments, statefulsets }),
+      handleNodeParams({ nodes, pods, resources, module })
     )
     return this.setParams(params)
   }
@@ -396,7 +206,7 @@ export default class MeterStore extends base {
     }
 
     if (pods) {
-      return { pods, ...params }
+      return { pods, nodes: nodes || undefined, ...params }
     }
 
     if (nodes) {
@@ -418,58 +228,66 @@ export default class MeterStore extends base {
     return params
   }
 
-  getOneMeter = (item, params, module) => {
+  setOneSourceAllMeterByType = (item, module) => {
+    const { data, metric_name } = item
+    const result = get(data, 'result.0', {})
+    const itemObject = {
+      type: metric_name,
+      module: RESOURCES_METER_TYPE[module],
+      ...result,
+    }
+    return itemObject
+  }
+
+  getOneSourceAllMeterData = (item, params, module) => {
     if (params.start) {
       item.start = params.start * 1000
     }
+
     if (params.end) {
       item.end = params.end * 1000
     }
+
     if (params.step) {
       item.step = getTimeStr(params.step)
     }
 
-    item.values = this.fillEmptyMeter(
+    item.values = fillEmptyMeterValue(
       { start: params.start, end: params.end, step: params.step.slice(0, -1) },
       item.values
     )
 
-    return this.handleValueByUnit(item, module)
+    return handleValueByUnit(item, module)
   }
 
-  setOneMeterByType = (item, module) => {
-    const { data, metric_name } = item
-    const result = get(data, 'result', [])
-    let itemObject = {}
-    result.forEach(_rusultObject => {
-      itemObject = {
-        type: metric_name,
-        module: RESOURCES_METER_TYPE[module],
-        ..._rusultObject,
+  handleAllMeterData = (result, params, module) => {
+    const _result = result.results.map(item => {
+      if (item.data.result) {
+        const _item = this.setOneSourceAllMeterByType(item, module)
+        return this.getOneSourceAllMeterData(_item, params, module)
       }
+      return false
     })
-    return itemObject
+    return handleSortBySourceType(_result)
   }
 
-  fillEmptyMeter = (params, values) => {
-    if (!params.step || !params.start || !params.end) {
-      return values
+  handleOneMeterData = (result, module) => {
+    const _result = result.results[0]
+    const data = get(_result, 'data.result', [])
+    const metricName = get(_result, 'metric_name', '')
+    let meterData = []
+
+    if (!isEmpty(data)) {
+      meterData = data.map(meter => {
+        meter = {
+          type: metricName,
+          module: RESOURCES_METER_TYPE[module],
+          ...meter,
+        }
+        return handleValueByUnit(meter, module)
+      })
     }
-
-    const format = num => String(num).replace(/\..*$/, '')
-    const step = params.step
-    const times = Math.floor((params.end - params.start) / step) + 1
-
-    if (values.length < times) {
-      const newValues = []
-      for (let index = 0; index < times - values.length; index++) {
-        const time = format(params.start + index * step)
-        newValues.push([time, '0'])
-      }
-
-      return [...newValues, ...values]
-    }
-    return values
+    return meterData
   }
 
   @action
@@ -503,8 +321,7 @@ export default class MeterStore extends base {
     })
 
     if (filter.operation || filter.module === 'namespaces') {
-      url = `${this.tenantUrl}s`
-
+      url = `${this.tenantUrl}/meterings`
       params = this.getExportParams({
         ...resource,
         ...filter,
@@ -524,7 +341,9 @@ export default class MeterStore extends base {
       })
     }
 
-    const result = await request.get(url, params)
+    const result = await request.get(url, params, {}, () => {
+      return []
+    })
 
     this.isLoading = false
 
@@ -536,35 +355,11 @@ export default class MeterStore extends base {
       const { module, meters } = filter
 
       if (meters === 'all') {
-        const _result = result.results.map(item => {
-          if (item.data.result) {
-            const _item = this.setOneMeterByType(item, module)
-            return this.getOneMeter(_item, params, module)
-          }
-          return false
-        })
-        const data = this.handleSortBySource(_result)
-
+        const data = this.handleAllMeterData(result, params, module)
         this.data = data
         return data
       }
-
-      const _result = result.results[0]
-      const data = get(_result, 'data.result', [])
-      const metricName = get(_result, 'metric_name', '')
-      let meterData = []
-
-      if (!isEmpty(data)) {
-        meterData = data.map(meter => {
-          meter = {
-            type: metricName,
-            module: RESOURCES_METER_TYPE[module],
-            ...meter,
-          }
-          return this.handleValueByUnit(meter, module)
-        })
-      }
-
+      const meterData = this.handleOneMeterData(result, module)
       this.data = meterData
       return meterData
     }
@@ -574,8 +369,10 @@ export default class MeterStore extends base {
 
   @action
   fetchPrice = async () => {
-    const url = `${this.tenantUrl}/price_info`
-    const result = await request.get(url)
+    const url = `${this.tenantUrl}/metering/price_info`
+    const result = await request.get(url, {}, {}, () => {
+      return {}
+    })
 
     if (result && !isEmpty(result)) {
       const _result = {}

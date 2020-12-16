@@ -20,17 +20,15 @@ import React from 'react'
 
 import { observer } from 'mobx-react'
 import { action, observable } from 'mobx'
-
-import FullScreen from 'components/Modals/FullscreenModal'
+import { set } from 'lodash'
 
 import EmptyList from 'components/Cards/EmptyList'
-import { set } from 'lodash'
+import Modal from 'components/Base/Modal/modal'
 import styles from './index.scss'
 import Home from './Home'
 import Details from './Details'
 import { CARD_CONFIG } from './constats'
 
-@FullScreen
 @observer
 export default class BillModal extends React.Component {
   @observable
@@ -110,11 +108,24 @@ export default class BillModal extends React.Component {
     }
 
     const { Component, props } = this.renderContent()
-
+    const { title, icon, description, onCancel } = this.props
     return (
-      <div className={styles.bill}>
-        <Component {...props} />
-      </div>
+      <Modal
+        visible
+        fullScreen
+        hideFooter
+        title={title}
+        icon={icon}
+        description={description}
+        onCancel={onCancel}
+        className={styles.billContainer}
+        headerClassName={styles.billModalHeader}
+        bodyClassName={styles.billContent}
+      >
+        <div className={styles.bill}>
+          <Component {...props} />
+        </div>
+      </Modal>
     )
   }
 }

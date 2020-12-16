@@ -17,7 +17,7 @@
  */
 
 import { action, observable } from 'mobx'
-import { isArray, isEmpty, get, cloneDeep } from 'lodash'
+import { isArray, isEmpty, isUndefined } from 'lodash'
 
 import ClusterStore from 'stores/cluster'
 import NodeStore from 'stores/node'
@@ -30,10 +30,15 @@ import WorkloadStore from 'stores/workload'
 import PodStore from 'stores/pod'
 
 import { ICON_TYPES } from 'utils/constants'
-import { RESOURCE_TITLE } from 'components/Modals/Bill/constats'
 
-import { getNodeStatus } from 'utils/node'
-import { getWorkloadStatus } from 'utils/status'
+import {
+  filterResourceLevel,
+  hasNameSpacesType,
+  filterListByType,
+  getFetchParams,
+  getListConfig,
+} from 'utils/meter'
+
 import Base from './base'
 
 export default class ClusterMeter extends Base {
@@ -42,6 +47,12 @@ export default class ClusterMeter extends Base {
 
   @observable
   cacheList = []
+
+  @observable
+  levelMeterData = {}
+
+  @observable
+  cacheLevelData = {}
 
   @observable
   isLoading = false
@@ -112,277 +123,26 @@ export default class ClusterMeter extends Base {
     pods: this.podStore,
   }
 
+  get isMultiCluster() {
+    return !globals.app.isMultiCluster
+  }
+
   getStore = type => {
     return this.store[type]
-  }
-
-  handleLabelSelector = params => {
-    let labelSelector = ''
-    if (!params || isEmpty(params)) return labelSelector
-    Object.keys(params).forEach(key => {
-      labelSelector += `${key}=${params[key]},`
-    })
-
-    labelSelector = labelSelector.slice(0, -1)
-    return labelSelector
-  }
-
-  getFetchParams = ({
-    type,
-    cluster,
-    namespaces,
-    workspaces,
-    applications,
-    ...params
-  }) => {
-    const PARAMS_CONFIG = {
-      cluster: !globals.app.isMultiCluster
-        ? [{ page: 1, limit: -1 }]
-        : [
-            {
-              page: 1,
-              limit: -1,
-              labelSelector: `cluster-role.kubesphere.io/host`,
-            },
-            {
-              page: 1,
-              limit: -1,
-              labelSelector: `!cluster-role.kubesphere.io/host`,
-            },
-          ],
-      nodes: [{ limit: -1, page: 1, cluster }],
-      workspaces: [
-        {
-          limit: -1,
-          page: 1,
-          namespace: namespaces,
-          workspace: workspaces,
-        },
-      ],
-      namespaces: [
-        {
-          page: 1,
-          limit: -1,
-          cluster,
-          namespace: namespaces,
-          workspace: workspaces,
-        },
-      ],
-      applications: [
-        {
-          page: 1,
-          limit: -1,
-          workspace: workspaces,
-          cluster,
-          namespace: namespaces,
-          application: applications,
-        },
-      ],
-      services: [
-        {
-          page: 1,
-          limit: -1,
-          cluster,
-          namespace: namespaces,
-        },
-      ],
-      deployments: [
-        {
-          page: 1,
-          limit: -1,
-          cluster,
-          namespace: namespaces,
-          labelSelector: this.handleLabelSelector(params.labelSelector),
-        },
-      ],
-      statefulsets: [
-        {
-          page: 1,
-          limit: -1,
-          cluster,
-          namespace: namespaces,
-          labelSelector: this.handleLabelSelector(params.labelSelector),
-        },
-      ],
-      pods: [
-        {
-          page: 1,
-          limit: -1,
-          cluster,
-          namespace: namespaces,
-          labelSelector: this.handleLabelSelector(params.labelSelector),
-          nodeName: params.nodes,
-          ownerKind: params.statefulsets
-            ? 'StatefulSet'
-            : params.deployments
-            ? 'ReplicaSet'
-            : undefined,
-        },
-      ],
-    }
-    return PARAMS_CONFIG[type]
-  }
-
-  getListConfig = type => {
-    const LIST_CONFIG = {
-      cluster: !globals.app.isMultiCluster
-        ? [
-            {
-              status: item => (item.isReady ? 'ready' : 'stop'),
-              desc: 'Host Cluster',
-            },
-          ]
-        : [
-            {
-              status: item => (item.isReady ? 'ready' : 'stop'),
-              desc: 'Host Cluster',
-            },
-            {
-              status: item => (item.isReady ? 'ready' : 'stop'),
-              desc: 'Member Cluster',
-            },
-          ],
-      nodes: [
-        {
-          status: item => getNodeStatus(item),
-          desc: RESOURCE_TITLE[type],
-        },
-      ],
-      workspaces: [
-        {
-          desc: RESOURCE_TITLE[type],
-        },
-      ],
-      namespaces: [
-        {
-          status: item => item.status,
-          desc: RESOURCE_TITLE[type],
-        },
-      ],
-      applications: [
-        {
-          status: item => item.status || '',
-          desc: RESOURCE_TITLE[type],
-        },
-      ],
-
-      services: [
-        {
-          desc: RESOURCE_TITLE[type],
-        },
-      ],
-      deployments: [
-        {
-          status: item => {
-            const { status } = getWorkloadStatus(item.status, type)
-            return status
-          },
-          desc: RESOURCE_TITLE[type],
-        },
-      ],
-      statefulsets: [
-        {
-          status: item => {
-            const { status } = getWorkloadStatus(item.status, type)
-            return status
-          },
-          desc: RESOURCE_TITLE[type],
-        },
-      ],
-      pods: [
-        {
-          status: item => get(item, 'podStatus.status', ''),
-          desc: RESOURCE_TITLE[type],
-        },
-      ],
-    }
-    return LIST_CONFIG[type]
-  }
-
-  hasNameSpacesType(type) {
-    const nameSpaceType = ['services', 'deployments', 'statefulsets', 'pods']
-    return nameSpaceType.indexOf(type) > -1
-  }
-
-  filterListByType = ({ type, ...params }) => {
-    if (
-      params.applications &&
-      (type === 'services' || type === 'deployments' || type === 'statefulsets')
-    ) {
-      return item => {
-        return item.app === params.applications
-      }
-    }
-
-    if (
-      type === 'services' ||
-      type === 'deployments' ||
-      type === 'statefulsets'
-    ) {
-      return item => !item.app
-    }
-
-    if (
-      (params.services || params.deployments || params.statefulsets) &&
-      type === 'pods' &&
-      isEmpty(params.labelSelector)
-    ) {
-      return () => false
-    }
-
-    return () => true
-  }
-
-  filterSamePodsWorkload = async ({ type, data, ...rest }) => {
-    if (type === 'deployments' || type === 'statefulsets') {
-      const workloadData = []
-
-      data.forEach(item => {
-        workloadData.push({
-          name: item.name,
-          labelSelector: item.labelSelector,
-        })
-      })
-
-      if (isEmpty(workloadData)) {
-        return data
-      }
-
-      const serviceRequestList = []
-
-      workloadData.forEach(item => {
-        serviceRequestList.push(
-          this.serviceStore.fetchListByK8s({
-            cluster: rest.cluster,
-            namespace: rest.namespaces,
-            module: 'services',
-            labelSelector: this.handleLabelSelector(item.labelSelector),
-          })
-        )
-      })
-
-      const servicesList = await Promise.all(serviceRequestList)
-      let result = cloneDeep(data)
-
-      if (!isEmpty(servicesList)) {
-        servicesList.forEach(serviceList => {
-          if (!isEmpty(serviceList)) {
-            serviceList.forEach(service => {
-              result = result.filter(_data => _data.name !== service.name)
-            })
-          }
-        })
-      }
-      return result
-    }
-    return data
   }
 
   @action
   fetchList = async ({ type, ...rest }) => {
     const store = this.getStore(type)
-    const params = this.getFetchParams({ type, ...rest })
-    const listConfig = this.getListConfig(type)
+    const params = getFetchParams({
+      isMultiCluster: this.isMultiCluster,
+      type,
+      ...rest,
+    })
+    const listConfig = getListConfig({
+      isMultiCluster: this.isMultiCluster,
+      type,
+    })
     const requestList = []
 
     params.forEach(request => {
@@ -402,16 +162,26 @@ export default class ClusterMeter extends Base {
       repList.forEach((rep, index) => {
         rep.forEach(item => {
           if (
-            !this.hasNameSpacesType(type) ||
-            (this.hasNameSpacesType(type) &&
-              this.filterListByType({ type, ...rest })(item))
+            !hasNameSpacesType(type) ||
+            (hasNameSpacesType(type) &&
+              filterListByType({ type, ...rest })(item))
           ) {
             const { status, desc } = listConfig[index]
+            const _status = status
+              ? type === 'deployments' || type === 'statefulsets'
+                ? status({
+                    hasS2i: item.hasS2i,
+                    spec: item.spec,
+                    status: item.status,
+                    annotations: item.annotations,
+                  })
+                : status(item)
+              : undefined
 
             data.push({
               icon: ICON_TYPES[type],
               name: item.name,
-              status: status ? status(item) : undefined,
+              status: _status,
               desc: t(desc),
               createTime: item.createTime,
               labelSelector: item.selector,
@@ -423,8 +193,42 @@ export default class ClusterMeter extends Base {
       })
     }
 
-    const result = this.filterSamePodsWorkload({ type, data, ...rest })
+    if (rest.node) {
+      this.list = data
+      return data
+    }
+
+    const result = await filterResourceLevel({
+      levelMeterData: this.levelMeterData,
+      type,
+      data,
+      ...rest,
+    })
+
     this.list = result
     return result
+  }
+
+  @action
+  fetchLevelMeter = async ({ cluster, namespaces }) => {
+    if (cluster) {
+      this.cluster = cluster
+    }
+    const url = `${this.tenantUrl}${this.getPaths({
+      module,
+      namespaces,
+    })}/metering_hierarchy`
+
+    const result = await request.get(url, {}, {}, () => {})
+    const data =
+      !isUndefined(result) && !isEmpty(result) ? { [namespaces]: result } : {}
+
+    this.levelMeterData = data
+    return data
+  }
+
+  @action
+  setLevelMeterData = levelMeterData => {
+    this.levelMeterData = levelMeterData
   }
 }

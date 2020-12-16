@@ -47,7 +47,7 @@ const CustomChartComponent = ({ data }) => {
   return (
     <Treemap
       width={600}
-      height={300}
+      height={330}
       data={data}
       dataKey="size"
       ratio={4 / 3}

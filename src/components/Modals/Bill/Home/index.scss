@@ -1,8 +1,7 @@
 @import '~scss/variables';
 
 .billHome {
-  padding-left: 10px;
-
+  padding: 52px 20px 0;
   .nav {
     height: 20px;
     margin-bottom: 40px;
@@ -44,7 +43,7 @@
       border-radius: 3px;
 
       &:nth-child(3) {
-        margin-right: 10px;
+        margin-right: 0;
       }
 
       & > div {
