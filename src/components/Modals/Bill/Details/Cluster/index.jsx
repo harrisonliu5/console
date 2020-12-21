@@ -1026,17 +1026,19 @@ export default class Details extends React.Component {
         <div className={styles.subTitle}>{t('Contains Resources')}</div>
         <div className={styles.childrenResourceContainer}>
           <Loading spinning={this.resourceLoading}>
-            <div className={styles.childrenlistContainer}>
-              <ResourceList
-                selectOptions={toJS(this.currentMeterData.sumData)}
-                childrenResourceList={this.childrenResourceList}
-                getResourceMeterData={this.getResourceMeterData}
-                activeName={this.active.name}
-              />
-            </div>
-            <div className={styles.constomChartContainer}>
-              <ConstomChart data={toJS(this.customChartData)} />
-            </div>
+            <>
+              <div className={styles.childrenlistContainer}>
+                <ResourceList
+                  selectOptions={toJS(this.currentMeterData.sumData)}
+                  childrenResourceList={this.childrenResourceList}
+                  getResourceMeterData={this.getResourceMeterData}
+                  activeName={this.active.name}
+                />
+              </div>
+              <div className={styles.constomChartContainer}>
+                <ConstomChart data={toJS(this.customChartData)} />
+              </div>
+            </>
           </Loading>
         </div>
       </>
@@ -1119,32 +1121,36 @@ export default class Details extends React.Component {
         </div>
         <div className={styles.rightContent}>
           <Loading spinning={this.loading}>
-            {this.renderTitle()}
-            <div className={styles.content}>
-              <MeterDetailCard
-                className={styles.toothbg}
-                title={
-                  <>
-                    <span>{t(RESOURCE_TITLE[type])}</span>
-                    <strong>{name}</strong>
-                  </>
-                }
-                {...this.currentMeterData}
-              />
-              <div className={styles.subTitle}>{t('Consumption History')}</div>
-              <div className={styles.info}>
-                <TimeSelect
-                  createTime={createTime}
-                  getTime={this.getTimeRange}
-                  start={start}
-                  end={end}
-                  step={step}
+            <>
+              {this.renderTitle()}
+              <div className={styles.content}>
+                <MeterDetailCard
+                  className={styles.toothbg}
+                  title={
+                    <>
+                      <span>{t(RESOURCE_TITLE[type])}</span>
+                      <strong>{name}</strong>
+                    </>
+                  }
+                  {...this.currentMeterData}
                 />
+                <div className={styles.subTitle}>
+                  {t('Consumption History')}
+                </div>
+                <div className={styles.info}>
+                  <TimeSelect
+                    createTime={createTime}
+                    getTime={this.getTimeRange}
+                    start={start}
+                    end={end}
+                    step={step}
+                  />
+                </div>
+                {this.renderChart()}
+                <MeterTable data={toJS(this.tableData)} />
+                {this.renderSubResource()}
               </div>
-              {this.renderChart()}
-              <MeterTable data={toJS(this.tableData)} />
-              {this.renderSubResource()}
-            </div>
+            </>
           </Loading>
         </div>
       </div>

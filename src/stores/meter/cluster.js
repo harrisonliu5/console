@@ -210,14 +210,14 @@ export default class ClusterMeter extends Base {
   }
 
   @action
-  fetchLevelMeter = async ({ cluster, namespaces }) => {
+  fetchLevelMeter = async ({ cluster, namespaces, workspaces }) => {
     if (cluster) {
       this.cluster = cluster
     }
     const url = `${this.tenantUrl}${this.getPaths({
       module,
       namespaces,
-    })}/metering_hierarchy`
+    })}/metering_hierarchy${workspaces ? `?workspace=${workspaces}` : ''}`
 
     const result = await request.get(url, {}, {}, () => {})
     const data =
