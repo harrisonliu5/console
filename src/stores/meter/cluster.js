@@ -219,7 +219,10 @@ export default class ClusterMeter extends Base {
       namespaces,
     })}/metering_hierarchy${workspaces ? `?workspace=${workspaces}` : ''}`
 
-    const result = await request.get(url, {}, {}, () => {})
+    const result = await request.get(url, {}, {}, () => {
+      return {}
+    })
+
     const data =
       !isUndefined(result) && !isEmpty(result) ? { [namespaces]: result } : {}
 

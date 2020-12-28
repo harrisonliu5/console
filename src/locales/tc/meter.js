@@ -16,14 +16,14 @@
  * along with KubeSphere Console.  If not, see <https://www.gnu.org/licenses/>.
  */
 export default {
-  Bill: '計量計費',
+  Bill: '資源消費統計',
   BILLING_OPERATING_DESC: '查看消费情况',
   'Consumption Bill': '消費賬單',
   'Export Bill': '導出記錄',
   'Consumption History': '消費歷史',
   'Reconciliation Cycle': '對賬週期',
   'Consumer Trends': '消費者趨勢',
-  'Contains Resources': '包含資源',
+  'Contains Resources': '當前包含資源',
   Trend: '趨勢圖',
   'Average Usage': '平均用量',
   'Total Consumption': '共消費',

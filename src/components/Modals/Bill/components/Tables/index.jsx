@@ -19,7 +19,7 @@
 import React from 'react'
 import Table from 'components/Tables/Base'
 
-import { isEmpty } from 'lodash'
+import { isEmpty, get } from 'lodash'
 import { Tooltip, Icon } from '@pitrix/lego-ui'
 
 import { METER_RESOURCE_TITLE } from '../../constats'
@@ -59,7 +59,7 @@ export default class MeterTable extends React.Component {
         render: (value, record) => {
           return (
             <>
-              {value} {record.unit}
+              {value} {get(record, 'unit.label', '-')}
             </>
           )
         },
@@ -71,7 +71,7 @@ export default class MeterTable extends React.Component {
         render: (value, record) => {
           return (
             <>
-              {value} {record.unit}
+              {value} {get(record, 'unit.label', '-')}
             </>
           )
         },
@@ -82,7 +82,7 @@ export default class MeterTable extends React.Component {
         render: (value, record) => {
           return (
             <>
-              {value} {record.unit}
+              {value} {get(record, 'unit.label', '-')}
             </>
           )
         },
@@ -100,7 +100,7 @@ export default class MeterTable extends React.Component {
         render: (value, record) => {
           return (
             <>
-              {value} {record.unit}
+              {value} {get(record, 'unit.label', '-')}
             </>
           )
         },

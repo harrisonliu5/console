@@ -107,7 +107,7 @@ export const getSuitableValue = (
   return `${count}${unitText}`
 }
 
-export const getValueByUnit = (num, unit) => {
+export const getValueByUnit = (num, unit, precision = 2) => {
   let value = parseFloat(num)
 
   switch (unit) {
@@ -175,7 +175,7 @@ export const getValueByUnit = (num, unit) => {
       break
   }
 
-  return Number(value) === 0 ? 0 : Number(value.toFixed(2))
+  return Number(value) === 0 ? 0 : Number(value.toFixed(precision))
 }
 
 export const getFormatTime = (ms, showDay) =>

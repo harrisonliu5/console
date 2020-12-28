@@ -320,8 +320,19 @@ export default class MeterStore extends base {
       nodes,
     })
 
-    if (filter.operation || filter.module === 'namespaces') {
+    if (filter.operation && filter.module !== 'namespaces') {
+      url = this.getApi({
+        module: filter.module,
+        ...resource,
+      })
+
+      params = this.getExportParams({
+        ...resource,
+        ...filter,
+      })
+    } else if (filter.module === 'namespaces') {
       url = `${this.tenantUrl}/meterings`
+
       params = this.getExportParams({
         ...resource,
         ...filter,

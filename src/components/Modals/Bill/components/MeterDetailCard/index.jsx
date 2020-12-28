@@ -44,15 +44,18 @@ const MeterDetailCard = ({ className, title, isParent, ...meterData } = {}) => {
     return isEmpty(data) ? null : (
       <ul>
         {Object.keys(data).map(key => {
+          const value =
+            get(data[key], 'value') < 0 ? 0 : get(data[key], 'value', '-')
+
           if (data[key]) {
             return (
               <li key={key}>
-                <div>{get(data[key], 'value', '-')}</div>
+                <div>{value}</div>
                 <p>
                   <span>
                     {t(METER_RESOURCE_TITLE[key])} {t('Consumption')}
                   </span>
-                  <span>({get(data[key], 'unit', '-')})</span>
+                  <span>({get(data[key], 'unit.label', '-')})</span>
                 </p>
               </li>
             )

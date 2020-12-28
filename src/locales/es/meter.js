@@ -23,7 +23,7 @@ export default {
   'Consumption History': 'Consumption History',
   'Reconciliation Cycle': 'Reconciliation Cycle',
   'Consumer Trends': 'Consumer Trends',
-  'Contains Resources': 'Contains Resources',
+  'Contains Resources': 'Currently Contains Resources',
   Trend: 'Trend',
   'Average Usage': 'Average Usage',
   'Total Consumption': 'Total Consumption',

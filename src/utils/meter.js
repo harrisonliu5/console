@@ -222,17 +222,17 @@ export const handleValueByUnit = (item, module) => {
       : data.type
 
   const UNIT_CONFIG = {
-    cpu: 'core',
-    memory: 'Gi',
-    number: 'M',
-    disk: 'GB',
+    cpu: { label: 'Core', value: 'core' },
+    memory: { label: 'Gi', value: 'Gi' },
+    number: { label: 'M', value: 'Mi' },
+    disk: { label: 'GB', value: 'Gi' },
   }
 
   const unit = UNIT_CONFIG[unitType]
 
   Object.keys(data).forEach(key => {
     if (key.indexOf('_') > -1) {
-      data[key] = getValueByUnit(data[key], unit)
+      data[key] = getValueByUnit(data[key], unit.value, 3)
       data.unit = unit
     }
   })

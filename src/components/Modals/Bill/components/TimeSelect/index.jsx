@@ -19,7 +19,9 @@
 import React from 'react'
 
 import { getLocalTime } from 'utils'
-import { DatePicker, Select, Notify } from '@pitrix/lego-ui'
+import { DatePicker, Select } from '@pitrix/lego-ui'
+import { Notify } from 'components/Base'
+
 import { getTimeOptions } from 'components/Cards/Monitoring/Controller/TimeSelector/utils'
 import cookie from 'utils/cookie'
 
@@ -62,8 +64,14 @@ export default class TimeSelect extends React.Component {
   }
 
   setTimeRange = type => selectedDates => {
+    const { getTime, start, end } = this.props
     const time = new Date(selectedDates[0]).getTime()
-    this.props.getTime({ type, value: time, methord: 'change' })
+
+    if ((type === 'start' && time > end) || (type === 'end' && time < start)) {
+      Notify.error({ content: t('TIMERANGE_SELECTOR_MSG') })
+      return
+    }
+    getTime({ type, value: time, methord: 'change' })
   }
 
   render() {

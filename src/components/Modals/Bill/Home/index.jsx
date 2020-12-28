@@ -65,8 +65,10 @@ export default function Home({ handleSelected, cardConfigRule }) {
 
   return (
     <div className={styles.billHome}>
-      {renderNav()}
-      <div className={styles.container}>{renderCard()}</div>
+      <div className={styles.billHome__container}>
+        {renderNav()}
+        <div className={styles.container}>{renderCard()}</div>
+      </div>
     </div>
   )
 }

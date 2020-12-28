@@ -434,10 +434,14 @@ export default class Details extends React.Component {
       item.values = item.values.map(_item => {
         const value = get(_item, [1])
         const valueConvertedByUnit =
-          value === '-1' ? null : getValueByUnit(value, item.unit)
+          value === '-1' ? null : getValueByUnit(value, item.unit.value)
+        let priceUnit = this.price_config[item.type]
 
-        const valueConvertedByPrice =
-          valueConvertedByUnit * this.price_config[item.type]
+        if (item.type === 'net_transmitted' || item.type === 'net_received') {
+          priceUnit /= 1024
+        }
+
+        const valueConvertedByPrice = valueConvertedByUnit * priceUnit
 
         set(_item, [1], valueConvertedByPrice)
 
@@ -526,7 +530,7 @@ export default class Details extends React.Component {
         if (item.type) {
           sumData[item.type] = {
             value: get(item, 'sum_value', ''),
-            unit: get(item, 'unit', ''),
+            unit: get(item, 'unit', 'label'),
           }
           feeData[item.type] = {
             value: parseFloat(get(item, 'fee', 0)).toFixed(2),
@@ -786,7 +790,11 @@ export default class Details extends React.Component {
       const levelMeterReqList = []
       dataList[0].forEach(item => {
         if (item.type === 'namespaces') {
-          const _params = Object.assign(params, { namespaces: item.name })
+          const _params = Object.assign(params, {
+            namespaces: item.name,
+            cluster: this.cluster,
+          })
+
           levelMeterReqList.push(
             this.clusterMeterStore.fetchLevelMeter({ ..._params })
           )
@@ -919,6 +927,7 @@ export default class Details extends React.Component {
       isTime: true,
       operation: 'export',
       ...params,
+      ...this.timeRange,
     })
 
     const name = this.billReportList.join('_')
