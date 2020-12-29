@@ -21,6 +21,7 @@ import React from 'react'
 import { getLocalTime } from 'utils'
 import { DatePicker, Select } from '@pitrix/lego-ui'
 import { Notify } from 'components/Base'
+import moment from 'moment-mini'
 
 import { getTimeOptions } from 'components/Cards/Monitoring/Controller/TimeSelector/utils'
 import cookie from 'utils/cookie'
@@ -35,6 +36,10 @@ export default class TimeSelect extends React.Component {
     end: '',
     step: '',
     createTime: '',
+  }
+
+  get today() {
+    return moment().endOf('day')._d
   }
 
   getTimeRange = ({ type, methord }) => selectedDates => {
@@ -77,12 +82,17 @@ export default class TimeSelect extends React.Component {
   render() {
     const { createTime, start, end, step } = this.props
     const format = cookie('lang') === 'zh' ? 'Y年Md日 H:i' : 'M d, Y H:i'
+
     const timeFormat =
       cookie('lang') === 'zh' ? 'YYYY年MM月DD日 HH:mm' : 'MMM DD, YYYY HH:mm'
 
     const createTimeStr = createTime
       ? getLocalTime(createTime).format(timeFormat)
       : '-'
+
+    if (!(end && start)) {
+      return null
+    }
 
     return (
       <ul className={styles.datepicker}>
@@ -99,6 +109,7 @@ export default class TimeSelect extends React.Component {
               enableTime
               showClearBtn={false}
               dateFormat={format}
+              maxDate={end}
               onClose={this.getTimeRange({
                 type: 'start',
                 methord: 'close',
@@ -115,6 +126,7 @@ export default class TimeSelect extends React.Component {
               enableTime
               showClearBtn={false}
               dateFormat={format}
+              maxDate={this.today}
               onClose={this.getTimeRange({
                 type: 'end',
                 methord: 'close',
