@@ -534,7 +534,7 @@ export default class Details extends React.Component {
           }
           feeData[item.type] = {
             value: parseFloat(get(item, 'fee', 0)).toFixed(2),
-            unit: t('￥'),
+            unit: { label: t('￥') },
           }
         }
       })

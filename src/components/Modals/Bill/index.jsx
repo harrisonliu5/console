@@ -20,10 +20,10 @@ import React from 'react'
 
 import { observer } from 'mobx-react'
 import { action, observable } from 'mobx'
-import { set } from 'lodash'
+import { isEmpty, set } from 'lodash'
 
-import EmptyList from 'components/Cards/EmptyList'
 import Modal from 'components/Base/Modal/modal'
+import EmptyList from 'components/Cards/EmptyList'
 import styles from './index.scss'
 import Home from './Home'
 import Details from './Details'
@@ -38,7 +38,30 @@ export default class BillModal extends React.Component {
   nav = []
 
   get isWorkspace() {
-    return !globals.app.isPlatformAdmin && !globals.app.enableAppStore
+    return (
+      !this.isPlatformAdmin &&
+      globals.app.getActions({ module: 'workspaces' }).includes('create')
+    )
+  }
+
+  get isPlatformAdmin() {
+    return globals.app.isPlatformAdmin
+  }
+
+  get isMultiCluster() {
+    return !this.isPlatformAdmin && globals.app.isMultiCluster
+  }
+
+  renderEmpty = () => {
+    return (
+      <div className={styles.empty}>
+        <EmptyList
+          className={styles.empty__Container}
+          title={t('USER_DASHBOARD_EMPTY_TITLE')}
+          desc={t('USER_DASHBOARD_EMPTY_DESC')}
+        />
+      </div>
+    )
   }
 
   contentConfig = () => ({
@@ -51,9 +74,11 @@ export default class BillModal extends React.Component {
     detail: {
       Component: Details,
       props: {
-        type: this.type,
         handleBack: this.handleBack,
       },
+    },
+    empty: {
+      Component: this.renderEmpty,
     },
   })
 
@@ -63,26 +88,32 @@ export default class BillModal extends React.Component {
   }
 
   handleBack = () => {
-    if (this.isWorkspace) {
+    if (this.isWorkspace || this.isMultiCluster) {
       return
     }
+
     this.type = undefined
   }
 
-  renderContent() {
+  renderContent = () => {
     const componentsData = this.contentConfig()
 
     if (!this.type) {
       let cardConfigRule = CARD_CONFIG
 
-      if (this.isWorkspace) {
-        cardConfigRule = CARD_CONFIG.filter(item => item.type === 'workspace')
-        this.type = 'workspaces'
+      if (this.isMultiCluster) {
+        cardConfigRule = CARD_CONFIG.filter(item => item.type === 'cluster')
+        this.type = 'cluster'
         return componentsData.detail
       }
 
-      if (!globals.app.isPlatformAdmin) {
-        cardConfigRule = CARD_CONFIG.filter(item => item.type !== 'cluster')
+      if (this.isWorkspace) {
+        if (isEmpty(globals.user.workspaces)) {
+          return componentsData.empty
+        }
+        cardConfigRule = CARD_CONFIG.filter(item => item.type === 'workspaces')
+        this.type = 'workspaces'
+        return componentsData.detail
       }
 
       if (!globals.app.enableAppStore) {
@@ -98,17 +129,9 @@ export default class BillModal extends React.Component {
   }
 
   render() {
-    if (globals.user.workspaces.length < 1) {
-      return (
-        <EmptyList
-          title={t('USER_DASHBOARD_EMPTY_TITLE')}
-          desc={t('USER_DASHBOARD_EMPTY_DESC')}
-        />
-      )
-    }
-
     const { Component, props } = this.renderContent()
     const { title, icon, description, onCancel } = this.props
+
     return (
       <Modal
         visible
@@ -123,7 +146,7 @@ export default class BillModal extends React.Component {
         bodyClassName={styles.billContent}
       >
         <div className={styles.bill}>
-          <Component {...props} />
+          <Component type={this.type} {...props} />
         </div>
       </Modal>
     )
