@@ -38,18 +38,11 @@ export default class BillModal extends React.Component {
   nav = []
 
   get isWorkspace() {
-    return (
-      !this.isPlatformAdmin &&
-      globals.app.getActions({ module: 'workspaces' }).includes('create')
-    )
+    return globals.app.hasPermission({ module: 'workspaces', action: 'view' })
   }
 
-  get isPlatformAdmin() {
-    return globals.app.isPlatformAdmin
-  }
-
-  get isMultiCluster() {
-    return !this.isPlatformAdmin && globals.app.isMultiCluster
+  get isCluster() {
+    return globals.app.hasPermission({ module: 'clusters', action: 'view' })
   }
 
   renderEmpty = () => {
@@ -88,7 +81,7 @@ export default class BillModal extends React.Component {
   }
 
   handleBack = () => {
-    if (this.isWorkspace || this.isMultiCluster) {
+    if (!(this.isWorkspace && this.isCluster)) {
       return
     }
 
@@ -101,13 +94,13 @@ export default class BillModal extends React.Component {
     if (!this.type) {
       let cardConfigRule = CARD_CONFIG
 
-      if (this.isMultiCluster) {
+      if (this.isCluster && !this.isWorkspace) {
         cardConfigRule = CARD_CONFIG.filter(item => item.type === 'cluster')
         this.type = 'cluster'
         return componentsData.detail
       }
 
-      if (this.isWorkspace) {
+      if (this.isWorkspace && !this.isCluster) {
         if (isEmpty(globals.user.workspaces)) {
           return componentsData.empty
         }
