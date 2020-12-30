@@ -36,8 +36,8 @@ import {
   FEE_CONFIG,
 } from 'components/Modals/Bill/constats'
 
+import { getTimeStr } from 'components/Cards/Monitoring/Controller/TimeSelector/utils'
 import base from '../base'
-import { getTimeStr } from '../../components/Cards/Monitoring/Controller/TimeSelector/utils'
 
 export default class MeterStore extends base {
   module = 'meter'
@@ -176,7 +176,7 @@ export default class MeterStore extends base {
     ...rest
   } = {}) => {
     const params = assign(
-      rest,
+      { ...rest },
       getTimeParams({ start, end, step, isTime }),
       getMetricsFilters({ module, meters }),
       getResourceFilters({ module, resources }),

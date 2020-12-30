@@ -43,7 +43,8 @@ import ClusterMeterStore from 'stores/meter/cluster'
 import { getAreaChartOps, getValueByUnit } from 'utils/monitoring'
 import { ICON_TYPES, COLORS_MAP } from 'utils/constants'
 
-import { handleWSChartData, handleStrTimeToX } from 'utils/meter'
+import { handleWSChartData, handleStrTimeToX, getTimeParams } from 'utils/meter'
+import { getTimeStr } from 'components/Cards/Monitoring/Controller/TimeSelector/utils'
 
 import {
   RESOURCES_TYPE,
@@ -233,6 +234,8 @@ export default class Details extends React.Component {
     if (type === 'cluster' || type === 'workspaces') {
       this.price_config = await this.store.fetchPrice()
     }
+
+    this.setTimeRange({ isTime, start: handleStrTimeToX(start) })
 
     this.setAreaChartData({
       data: meterData,
@@ -460,12 +463,6 @@ export default class Details extends React.Component {
       legend,
     }
 
-    this.timeRange = {
-      start: data[0].start,
-      end: data[0].end,
-      step: data[0].step,
-    }
-
     this.chartData = getAreaChartOps(_result)
     this.chartData.loading = false
   }
@@ -483,6 +480,7 @@ export default class Details extends React.Component {
       params,
     })
 
+    this.setTimeRange({ isTime: true, ...params })
     this.tableData = this.setLineChartColor(data)
     this.setAreaChartData({ data })
     this.chartData.loading = false
@@ -1101,6 +1099,15 @@ export default class Details extends React.Component {
     }
 
     set(this.timeRange, `${type}`, value)
+  }
+
+  setTimeRange = ({ isTime, ...params }) => {
+    const { step, start, end } = getTimeParams({ isTime, ...params })
+    this.timeRange = {
+      step: getTimeStr(step),
+      start: start * 1000,
+      end: end * 1000,
+    }
   }
 
   @action
