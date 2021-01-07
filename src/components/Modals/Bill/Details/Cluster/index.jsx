@@ -130,7 +130,7 @@ export default class Details extends React.Component {
   billReportList = []
 
   @observable
-  price_config = {}
+  priceConfig = {}
 
   @observable
   resourceLoading = false
@@ -172,7 +172,7 @@ export default class Details extends React.Component {
       start: createTime,
     })
 
-    this.price_config = await this.store.fetchPrice()
+    this.priceConfig = await this.store.fetchPrice()
 
     this.sideLoading = false
     this.loading = false
@@ -214,6 +214,7 @@ export default class Details extends React.Component {
     this.active = { name, type, createTime }
     this.tableData = []
     this.customChartData = []
+    this.timeRange = {}
     this.setActiveCrumb({ name, type, isCopy: !!isCopy, createTime })
     const params = this.getMeterParamsByCrumb()
 
@@ -232,7 +233,7 @@ export default class Details extends React.Component {
     this.tableData = this.setLineChartColor(meterData)
 
     if (type === 'cluster' || type === 'workspaces') {
-      this.price_config = await this.store.fetchPrice()
+      this.priceConfig = await this.store.fetchPrice()
     }
 
     this.setTimeRange({ isTime, start: handleStrTimeToX(start) })
@@ -428,7 +429,7 @@ export default class Details extends React.Component {
   setAreaChartData = async ({ data }) => {
     this.chartData.loading = true
 
-    if (isEmpty(data) || isEmpty(this.price_config)) {
+    if (isEmpty(data) || isEmpty(this.priceConfig)) {
       this.chartData = { loading: false }
       return
     }
@@ -438,7 +439,7 @@ export default class Details extends React.Component {
         const value = get(_item, [1])
         const valueConvertedByUnit =
           value === '-1' ? null : getValueByUnit(value, item.unit.value)
-        let priceUnit = this.price_config[item.type]
+        let priceUnit = this.priceConfig[item.type]
 
         if (item.type === 'net_transmitted' || item.type === 'net_received') {
           priceUnit /= 1024
@@ -464,6 +465,7 @@ export default class Details extends React.Component {
     }
 
     this.chartData = getAreaChartOps(_result)
+    this.chartData.data.shift()
     this.chartData.loading = false
   }
 
@@ -471,6 +473,7 @@ export default class Details extends React.Component {
   handleChartData = async ({ meters, ...params }) => {
     const { name } = this.active
     this.tableData = []
+    this.chartData.loading = true
 
     const data = await this.setMeterData({
       module: this.active.type,
@@ -480,7 +483,6 @@ export default class Details extends React.Component {
       params,
     })
 
-    this.setTimeRange({ isTime: true, ...params })
     this.tableData = this.setLineChartColor(data)
     this.setAreaChartData({ data })
     this.chartData.loading = false
@@ -1122,7 +1124,6 @@ export default class Details extends React.Component {
 
   render() {
     const { type, name, createTime } = this.active
-    const { start, end, step } = this.timeRange
 
     return (
       <div className={styles.billDetail}>
@@ -1154,13 +1155,13 @@ export default class Details extends React.Component {
                   {t('Consumption History')}
                 </div>
                 <div className={styles.info}>
-                  <TimeSelect
-                    createTime={createTime}
-                    getTime={this.getTimeRange}
-                    start={start}
-                    end={end}
-                    step={step}
-                  />
+                  {!isEmpty(toJS(this.timeRange)) ? (
+                    <TimeSelect
+                      createTime={createTime}
+                      getTime={this.getTimeRange}
+                      timeRange={this.timeRange}
+                    />
+                  ) : null}
                 </div>
                 {this.renderChart()}
                 <MeterTable data={toJS(this.tableData)} />

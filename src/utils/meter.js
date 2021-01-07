@@ -153,9 +153,10 @@ export const getTimeParams = ({ isTime, start, end, step = '1h' }) => {
     if (day >= 30) {
       _step = '1d'
     }
+
     params.step = getMinuteValue(_step)
   }
-  return { ...params }
+  return params
 }
 
 export const getMetricsFilters = ({ meters, module }) => {
@@ -348,24 +349,25 @@ const handleNsMeter = (lists, levelMeterData, meters) => {
     const parentName = { name: _item.name }
     const _levelMeterData = levelMeterData[_item.name]
 
-    Object.keys(_levelMeterData).forEach(key => {
-      if (key !== 'daemonsets' && _levelMeterData[key]) {
-        parentName.children = []
-        Object.keys(_levelMeterData[key]).forEach(itemMeter => {
-          if (_levelMeterData[key][itemMeter]) {
-            const value = get(
-              _levelMeterData,
-              `${key}.${itemMeter}.${METER_RESOURCE_USAGE[meters]}`,
-              0
-            )
-            parentName.children.push({
-              name: itemMeter,
-              size: value,
-            })
-          }
-        })
-      }
-    })
+    !isEmpty(_levelMeterData) &&
+      Object.keys(_levelMeterData).forEach(key => {
+        if (key !== 'daemonsets' && _levelMeterData[key]) {
+          parentName.children = []
+          Object.keys(_levelMeterData[key]).forEach(itemMeter => {
+            if (_levelMeterData[key][itemMeter]) {
+              const value = get(
+                _levelMeterData,
+                `${key}.${itemMeter}.${METER_RESOURCE_USAGE[meters]}`,
+                0
+              )
+              parentName.children.push({
+                name: itemMeter,
+                size: value,
+              })
+            }
+          })
+        }
+      })
     if (!isEmpty(parentName.children)) {
       customItemChartData.push(parentName)
     }
