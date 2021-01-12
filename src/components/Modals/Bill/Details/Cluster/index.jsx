@@ -146,7 +146,7 @@ export default class Details extends React.Component {
     this.loading = true
     this.sideLoading = true
 
-    await this.clusterMeterStore.fetchRetentionDay()
+    this.priceConfig = await this.store.fetchPrice()
 
     const list = await this.clusterMeterStore.fetchList({
       type: this.props.meterType,
@@ -183,8 +183,6 @@ export default class Details extends React.Component {
       start: startTime,
     })
 
-    this.priceConfig = await this.store.fetchPrice()
-
     this.sideLoading = false
     this.loading = false
   }
@@ -211,7 +209,8 @@ export default class Details extends React.Component {
         type,
         time: createTime,
       })
-      start = handleCreateTime(createTime, this.clusterMeterStore.retentionDay)
+
+      start = handleCreateTime(createTime, this.store.retentionDay)
     }
 
     await this.getCurrentMeterData({
@@ -262,6 +261,11 @@ export default class Details extends React.Component {
       createTime,
       start,
     })
+
+    if (type === 'cluster' || type === 'workspaces') {
+      this.priceConfig = await this.store.fetchPrice()
+    }
+
     const params = this.getMeterParamsByCrumb()
 
     this.loading = true
@@ -277,10 +281,6 @@ export default class Details extends React.Component {
     })
 
     this.tableData = this.setLineChartColor(meterData)
-
-    if (type === 'cluster' || type === 'workspaces') {
-      this.priceConfig = await this.store.fetchPrice()
-    }
 
     this.setTimeRange({ isTime, start: handleStrTimeToX(start) })
 
@@ -359,7 +359,7 @@ export default class Details extends React.Component {
         type,
         time: createTime,
       })
-      start = handleCreateTime(createTime, this.clusterMeterStore.retentionDay)
+      start = handleCreateTime(createTime, this.store.retentionDay)
     }
 
     this.setActiveCrumb({

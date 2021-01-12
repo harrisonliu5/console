@@ -17,7 +17,7 @@
  */
 
 import { action, observable } from 'mobx'
-import { get, isArray, isEmpty, isUndefined } from 'lodash'
+import { isArray, isEmpty, isUndefined } from 'lodash'
 
 import ClusterStore from 'stores/cluster'
 import NodeStore from 'stores/node'
@@ -57,9 +57,6 @@ export default class ClusterMeter extends Base {
 
   @observable
   isLoading = false
-
-  @observable
-  retentionDay = '7d'
 
   clusterStore = new ClusterStore()
 
@@ -242,16 +239,5 @@ export default class ClusterMeter extends Base {
   @action
   setLevelMeterData = levelMeterData => {
     this.levelMeterData = levelMeterData
-  }
-
-  @action
-  fetchRetentionDay = async () => {
-    const url =
-      'apis/monitoring.coreos.com/v1/namespaces/kubesphere-monitoring-system/prometheuses/k8s'
-    const result = await request.get(url, {}, {}, () => {
-      return '7d'
-    })
-    const day = get(result, 'spec.retention', '7d')
-    this.retentionDay = day
   }
 }

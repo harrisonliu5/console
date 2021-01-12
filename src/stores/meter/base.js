@@ -48,6 +48,9 @@ export default class MeterStore extends base {
   @observable
   data = []
 
+  @observable
+  retentionDay = '7d'
+
   get apiVersion() {
     if (globals.app.isMultiCluster && this.cluster) {
       return `kapis/clusters/${this.cluster}/metering.kubesphere.io/v1alpha1`
@@ -386,6 +389,8 @@ export default class MeterStore extends base {
     })
 
     if (result && !isEmpty(result)) {
+      this.retentionDay = get(result, 'retention_day', '7d')
+
       const _result = {}
       Object.keys(result).forEach(key => {
         _result[FEE_CONFIG[key]] = result[key]
