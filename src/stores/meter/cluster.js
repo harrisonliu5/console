@@ -17,7 +17,7 @@
  */
 
 import { action, observable } from 'mobx'
-import { isArray, isEmpty, isUndefined } from 'lodash'
+import { get, isArray, isEmpty, isUndefined } from 'lodash'
 
 import ClusterStore from 'stores/cluster'
 import NodeStore from 'stores/node'
@@ -37,6 +37,7 @@ import {
   filterListByType,
   getFetchParams,
   getListConfig,
+  handleCreateTime,
 } from 'utils/meter'
 
 import Base from './base'
@@ -56,6 +57,9 @@ export default class ClusterMeter extends Base {
 
   @observable
   isLoading = false
+
+  @observable
+  retentionDay = '7d'
 
   clusterStore = new ClusterStore()
 
@@ -178,12 +182,18 @@ export default class ClusterMeter extends Base {
                 : status(item)
               : undefined
 
+            const startTime = handleCreateTime(
+              item.createTime,
+              this.retentionDay
+            )
+
             data.push({
               icon: ICON_TYPES[type],
               name: item.name,
               status: _status,
               desc: t(desc),
               createTime: item.createTime,
+              startTime,
               labelSelector: item.selector,
               type,
               _origin: { ...item },
@@ -222,7 +232,6 @@ export default class ClusterMeter extends Base {
     const result = await request.get(url, {}, {}, () => {
       return {}
     })
-
     const data =
       !isUndefined(result) && !isEmpty(result) ? { [namespaces]: result } : {}
 
@@ -233,5 +242,16 @@ export default class ClusterMeter extends Base {
   @action
   setLevelMeterData = levelMeterData => {
     this.levelMeterData = levelMeterData
+  }
+
+  @action
+  fetchRetentionDay = async () => {
+    const url =
+      'apis/monitoring.coreos.com/v1/namespaces/kubesphere-monitoring-system/prometheuses/k8s'
+    const result = await request.get(url, {}, {}, () => {
+      return '7d'
+    })
+    const day = get(result, 'spec.retention', '7d')
+    this.retentionDay = day
   }
 }

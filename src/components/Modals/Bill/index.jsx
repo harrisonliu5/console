@@ -38,7 +38,10 @@ export default class BillModal extends React.Component {
   nav = []
 
   get isWorkspace() {
-    return globals.app.hasPermission({ module: 'workspaces', action: 'view' })
+    return (
+      globals.app.hasPermission({ module: 'workspaces', action: 'view' }) ||
+      !isEmpty(globals.user.workspaces)
+    )
   }
 
   get isCluster() {

@@ -25,9 +25,10 @@ import { Notify } from 'components/Base'
 import { getTimeOptions } from 'components/Cards/Monitoring/Controller/TimeSelector/utils'
 import cookie from 'utils/cookie'
 
+import moment from 'moment-mini'
 import styles from './index.scss'
 
-const TimeOps = ['1h', '2h', '5h', '8h', '1d']
+const TimeOps = ['1h', '2h', '4h', '8h', '1d']
 
 const format = cookie('lang') === 'zh' ? 'Y年Md日 H:i' : 'M d, Y H:i'
 const timeFormat =
@@ -39,7 +40,9 @@ export default class TimeSelect extends React.Component {
 
     const { timeRange } = this.props
     const end = timeRange.end || new Date()
-    this.maxDate = new Date(end)
+
+    this.endMaxDate = new Date(end)
+    this.maxDate = new Date(moment(end).subtract(1, 'minutes'))
     this.minDate = new Date(timeRange.start)
   }
 
@@ -49,7 +52,6 @@ export default class TimeSelect extends React.Component {
     const time = new Date(selectedDates[0]).getTime()
 
     if ((type === 'start' && time > end) || (type === 'end' && time < start)) {
-      Notify.error({ content: t('TIMERANGE_SELECTOR_MSG') })
       return
     }
 
@@ -118,7 +120,6 @@ export default class TimeSelect extends React.Component {
             <DatePicker
               defaultValue={start}
               value={start}
-              enableTime
               showClearBtn={false}
               dateFormat={format}
               minDate={this.minDate}
@@ -137,11 +138,10 @@ export default class TimeSelect extends React.Component {
             <DatePicker
               defaultValue={end}
               value={end}
-              enableTime
               showClearBtn={false}
               dateFormat={format}
               minDate={this.minDate}
-              maxDate={this.maxDate}
+              maxDate={this.endMaxDate}
               onClose={this.getTimeRange({
                 type: 'end',
                 methord: 'close',

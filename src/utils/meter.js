@@ -37,7 +37,8 @@ import { getWorkloadStatus } from 'utils/status'
 import { getLocalTime } from 'utils'
 
 import { getValueByUnit } from 'utils/monitoring'
-import { getTimeRange, getMinuteValue } from 'stores/monitoring/base'
+import { getMinuteValue } from 'stores/monitoring/base'
+import moment from 'moment-mini'
 
 export const getMeterFilter = type => {
   const _type = RESOURCES_METER_TYPE[type]
@@ -126,6 +127,35 @@ export const handleLevelParams = ({ module }) => {
   const _module = RESOURCES_METER_TYPE[module]
   const level = `Level${upperFirst(_module)}`
   return { level }
+}
+
+export const handleCreateTime = (createTime, retentionDay = '7d') => {
+  const _createTime = moment(new Date(createTime))
+    .endOf('day')
+    .add(1, 'second')
+
+  const retention = moment()
+    .endOf('day')
+    .add(1, 'second')
+    .subtract(1, 'day')
+    .subtract(retentionDay.slice(0, -1), 'day')
+
+  const startTime = _createTime - retention > 0 ? _createTime : retention
+  return startTime
+}
+
+export const getTimeRange = ({ step = '600s', times = 20 } = {}) => {
+  const interval = parseFloat(step) * times
+  const end = Math.floor(
+    moment()
+      .endOf('day')
+      .add(1, 'second')
+      .subtract(1, 'day') / 1000
+  )
+
+  const start = Math.floor(end - interval)
+
+  return { start, end }
 }
 
 export const getTimeParams = ({ isTime, start, end, step = '1h' }) => {
@@ -680,7 +710,5 @@ export const getListConfig = ({ type, isMultiCluster }) => {
 }
 
 export const handleStrTimeToX = strTime => {
-  return !isUndefined(strTime) && typeof strTime === 'string'
-    ? getLocalTime(strTime).format('X') * 1000
-    : undefined
+  return moment(strTime).format('X') * 1000
 }
