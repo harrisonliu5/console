@@ -13,6 +13,16 @@
     .bill {
       height: 100%;
       overflow-y: auto;
+
+      .empty {
+        height: 100%;
+
+        .empty__Container {
+          height: 100%;
+          padding-top: 38vh;
+          margin-top: 0;
+        }
+      }
     }
   }
 }

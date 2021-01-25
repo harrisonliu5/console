@@ -15,7 +15,7 @@
  * You should have received a copy of the GNU Affero General Public License
  * along with KubeSphere Console.  If not, see <https://www.gnu.org/licenses/>.
  */
-export default {
+module.exports = {
   'Consumption Bill': '消費賬單',
   'Export Bill': '導出記錄',
   'Consumption History': '消費歷史',

@@ -37,7 +37,8 @@ import { getWorkloadStatus } from 'utils/status'
 import { getLocalTime } from 'utils'
 
 import { getValueByUnit } from 'utils/monitoring'
-import { getTimeRange, getMinuteValue } from 'stores/monitoring/base'
+import { getMinuteValue } from 'stores/monitoring/base'
+import moment from 'moment-mini'
 
 export const getMeterFilter = type => {
   const _type = RESOURCES_METER_TYPE[type]
@@ -128,6 +129,35 @@ export const handleLevelParams = ({ module }) => {
   return { level }
 }
 
+export const handleCreateTime = (createTime, retentionDay = '7d') => {
+  const _createTime = moment(new Date(createTime))
+    .endOf('day')
+    .add(1, 'second')
+
+  const retention = moment()
+    .endOf('day')
+    .add(1, 'second')
+    .subtract(1, 'day')
+    .subtract(retentionDay.slice(0, -1), 'day')
+
+  const startTime = _createTime - retention > 0 ? _createTime : retention
+  return startTime
+}
+
+export const getTimeRange = ({ step = '600s', times = 20 } = {}) => {
+  const interval = parseFloat(step) * times
+  const end = Math.floor(
+    moment()
+      .endOf('day')
+      .add(1, 'second')
+      .subtract(1, 'day') / 1000
+  )
+
+  const start = Math.floor(end - interval)
+
+  return { start, end }
+}
+
 export const getTimeParams = ({ isTime, start, end, step = '1h' }) => {
   const params = {}
 
@@ -153,9 +183,10 @@ export const getTimeParams = ({ isTime, start, end, step = '1h' }) => {
     if (day >= 30) {
       _step = '1d'
     }
+
     params.step = getMinuteValue(_step)
   }
-  return { ...params }
+  return params
 }
 
 export const getMetricsFilters = ({ meters, module }) => {
@@ -222,17 +253,17 @@ export const handleValueByUnit = (item, module) => {
       : data.type
 
   const UNIT_CONFIG = {
-    cpu: 'core',
-    memory: 'Gi',
-    number: 'M',
-    disk: 'GB',
+    cpu: { label: 'Core', value: 'core' },
+    memory: { label: 'Gi', value: 'Gi' },
+    number: { label: 'M', value: 'Mi' },
+    disk: { label: 'GB', value: 'Gi' },
   }
 
   const unit = UNIT_CONFIG[unitType]
 
   Object.keys(data).forEach(key => {
     if (key.indexOf('_') > -1) {
-      data[key] = getValueByUnit(data[key], unit)
+      data[key] = getValueByUnit(data[key], unit.value, 3)
       data.unit = unit
     }
   })
@@ -346,24 +377,25 @@ const handleNsMeter = (lists, levelMeterData, meters) => {
     const parentName = { name: _item.name }
     const _levelMeterData = levelMeterData[_item.name]
 
-    Object.keys(_levelMeterData).forEach(key => {
-      if (key !== 'daemonsets' && _levelMeterData[key]) {
-        parentName.children = []
-        Object.keys(_levelMeterData[key]).forEach(itemMeter => {
-          if (_levelMeterData[key][itemMeter]) {
-            const value = get(
-              _levelMeterData,
-              `${key}.${itemMeter}.${METER_RESOURCE_USAGE[meters]}`,
-              0
-            )
-            parentName.children.push({
-              name: itemMeter,
-              size: value,
-            })
-          }
-        })
-      }
-    })
+    !isEmpty(_levelMeterData) &&
+      Object.keys(_levelMeterData).forEach(key => {
+        if (key !== 'daemonsets' && _levelMeterData[key]) {
+          parentName.children = []
+          Object.keys(_levelMeterData[key]).forEach(itemMeter => {
+            if (_levelMeterData[key][itemMeter]) {
+              const value = get(
+                _levelMeterData,
+                `${key}.${itemMeter}.${METER_RESOURCE_USAGE[meters]}`,
+                0
+              )
+              parentName.children.push({
+                name: itemMeter,
+                size: value,
+              })
+            }
+          })
+        }
+      })
     if (!isEmpty(parentName.children)) {
       customItemChartData.push(parentName)
     }
@@ -676,7 +708,5 @@ export const getListConfig = ({ type, isMultiCluster }) => {
 }
 
 export const handleStrTimeToX = strTime => {
-  return !isUndefined(strTime) && typeof strTime === 'string'
-    ? getLocalTime(strTime).format('X') * 1000
-    : undefined
+  return moment(strTime).format('X') * 1000
 }

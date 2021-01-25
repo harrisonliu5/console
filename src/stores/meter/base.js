@@ -36,8 +36,8 @@ import {
   FEE_CONFIG,
 } from 'components/Modals/Bill/constats'
 
+import { getTimeStr } from 'components/Cards/Monitoring/Controller/TimeSelector/utils'
 import base from '../base'
-import { getTimeStr } from '../../components/Cards/Monitoring/Controller/TimeSelector/utils'
 
 export default class MeterStore extends base {
   module = 'meter'
@@ -47,6 +47,9 @@ export default class MeterStore extends base {
 
   @observable
   data = []
+
+  @observable
+  retentionDay = '7d'
 
   get apiVersion() {
     if (globals.app.isMultiCluster && this.cluster) {
@@ -176,7 +179,7 @@ export default class MeterStore extends base {
     ...rest
   } = {}) => {
     const params = assign(
-      rest,
+      { ...rest },
       getTimeParams({ start, end, step, isTime }),
       getMetricsFilters({ module, meters }),
       getResourceFilters({ module, resources }),
@@ -320,8 +323,19 @@ export default class MeterStore extends base {
       nodes,
     })
 
-    if (filter.operation || filter.module === 'namespaces') {
+    if (filter.operation && filter.module !== 'namespaces') {
+      url = this.getApi({
+        module: filter.module,
+        ...resource,
+      })
+
+      params = this.getExportParams({
+        ...resource,
+        ...filter,
+      })
+    } else if (filter.module === 'namespaces') {
       url = `${this.tenantUrl}/meterings`
+
       params = this.getExportParams({
         ...resource,
         ...filter,
@@ -375,6 +389,8 @@ export default class MeterStore extends base {
     })
 
     if (result && !isEmpty(result)) {
+      this.retentionDay = get(result, 'retention_day', '7d')
+
       const _result = {}
       Object.keys(result).forEach(key => {
         _result[FEE_CONFIG[key]] = result[key]

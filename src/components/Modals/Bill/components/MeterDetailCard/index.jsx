@@ -40,19 +40,32 @@ const MeterDetailCard = ({ className, title, isParent, ...meterData } = {}) => {
     return total.toFixed(2)
   }
 
-  const renderList = data => {
+  const handleFixed = value => {
+    const result = handleValue(value)
+    return result !== '-' ? result.toFixed(3) : result
+  }
+
+  const handleValue = value => {
+    return isUndefined(value) ? '-' : value < 0 ? 0 : value
+  }
+
+  const renderList = (data, type) => {
     return isEmpty(data) ? null : (
       <ul>
         {Object.keys(data).map(key => {
+          const dataValue = get(data[key], 'value')
+          const value =
+            type === 'meter' ? handleFixed(dataValue) : handleValue(dataValue)
+
           if (data[key]) {
             return (
               <li key={key}>
-                <div>{get(data[key], 'value', '-')}</div>
+                <div>{value}</div>
                 <p>
                   <span>
                     {t(METER_RESOURCE_TITLE[key])} {t('Consumption')}
                   </span>
-                  <span>({get(data[key], 'unit', '-')})</span>
+                  <span>({get(data[key], 'unit.label', '-')})</span>
                 </p>
               </li>
             )
@@ -101,8 +114,8 @@ const MeterDetailCard = ({ className, title, isParent, ...meterData } = {}) => {
       {isParent ? renderParentTotal(title) : renderCurrentTotal(title)}
       {!isParent ? (
         <div className={styles.consumContainer}>
-          {renderList(sumData)}
-          {renderList(feeData)}
+          {renderList(sumData, 'meter')}
+          {renderList(feeData, 'price')}
         </div>
       ) : null}
     </div>

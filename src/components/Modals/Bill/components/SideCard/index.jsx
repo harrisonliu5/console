@@ -35,7 +35,16 @@ export default function Card({
   loading,
   isCheck,
 }) {
-  const { icon, status, desc, name, type, labelSelector, createTime } = data
+  const {
+    icon,
+    status,
+    desc,
+    name,
+    type,
+    labelSelector,
+    startTime,
+    createTime,
+  } = data
   const isActive = isEmpty(active)
     ? false
     : active.name === name && active.type === type
@@ -79,6 +88,7 @@ export default function Card({
           : getCurrentMeterData({
               name,
               type,
+              start: startTime,
               createTime,
               labelSelector,
             })
@@ -111,6 +121,7 @@ export default function Card({
               name,
               type,
               createTime,
+              start: startTime,
               labelSelector,
             })
           }

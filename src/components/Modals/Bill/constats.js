@@ -130,6 +130,7 @@ export const FEE_CONFIG = {
   ingress_network_traffic_per_giagabytes_per_hour: 'net_received',
   mem_per_gigabytes_per_hour: 'memory',
   pvc_per_gigabytes_per_hour: 'disk',
+  currency: 'currency',
 }
 
 export const METER_RESOURCE_USAGE = {

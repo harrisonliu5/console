@@ -28,6 +28,7 @@ import {
   flatten,
   set,
   isUndefined,
+  has,
 } from 'lodash'
 import { saveAs } from 'file-saver'
 import classnames from 'classnames'
@@ -41,8 +42,15 @@ import ClusterMeterStore from 'stores/meter/cluster'
 import { getAreaChartOps, getValueByUnit } from 'utils/monitoring'
 import { ICON_TYPES, COLORS_MAP } from 'utils/constants'
 
-import { handleWSChartData, handleStrTimeToX } from 'utils/meter'
+import {
+  handleWSChartData,
+  handleStrTimeToX,
+  getTimeParams,
+  handleCreateTime,
+} from 'utils/meter'
+import { getTimeStr } from 'components/Cards/Monitoring/Controller/TimeSelector/utils'
 
+import moment from 'moment-mini'
 import {
   RESOURCES_TYPE,
   RESOURCE_TITLE,
@@ -128,7 +136,7 @@ export default class Details extends React.Component {
   billReportList = []
 
   @observable
-  price_config = {}
+  priceConfig = {}
 
   @observable
   resourceLoading = false
@@ -136,6 +144,9 @@ export default class Details extends React.Component {
   initData = async () => {
     this.loading = true
     this.sideLoading = true
+
+    this.priceConfig = await this.store.fetchPrice()
+
     const list = await this.clusterMeterStore.fetchList({
       type: this.props.meterType,
     })
@@ -145,12 +156,12 @@ export default class Details extends React.Component {
       this.loading = false
     }
 
-    const { name, type, createTime } = list[0]
+    const { name, type, labelSelector, createTime, startTime } = list[0]
 
     this.list = list
 
     if (type === 'cluster') {
-      this.cluster = type
+      this.cluster = name
     }
 
     this.crumbData.push({
@@ -158,19 +169,18 @@ export default class Details extends React.Component {
       name,
       list,
       createTime,
+      start: startTime,
     })
 
     await this.handleSelectResource({
       name,
       type,
       isCopy: true,
-      labelSelector: get(this.list, '[0].labelSelector'),
+      labelSelector,
       isTime: true,
       createTime,
-      start: createTime,
+      start: startTime,
     })
-
-    this.price_config = await this.store.fetchPrice()
 
     this.sideLoading = false
     this.loading = false
@@ -180,7 +190,9 @@ export default class Details extends React.Component {
     this.initData()
   }
 
-  handleSelectResource = async ({ name, type, ...params }) => {
+  handleSelectResource = async ({ name, type, isCopy, ...params }) => {
+    let createTime = params.createTime
+    let start = params.start
     if (name === this.active.name && type === this.active.type) {
       return
     }
@@ -190,13 +202,41 @@ export default class Details extends React.Component {
       this.cluster = get(this.clusters, '[0].value', '')
     }
 
+    if (type === 'cluster') {
+      this.crumbData[0].name = name
+      createTime = await this.getClusterCreateTime({
+        type,
+        time: createTime,
+      })
+
+      start = handleCreateTime(createTime, this.store.retentionDay)
+    }
+
     await this.getCurrentMeterData({
       name,
       type,
       isTime: true,
-      start: params.createTime,
       ...params,
+      createTime,
+      start,
+      isCopy: true,
     })
+  }
+
+  getClusterCreateTime = async ({ type, labelSelector, time }) => {
+    const childrenList = await this.getChildrenList({
+      currentType: type,
+      labelSelector,
+    })
+
+    const createTimeList = childrenList
+      .filter(item =>
+        has(item, "_origin.labels['node-role.kubernetes.io/master']")
+      )
+      .map(item => new Date(item.createTime).valueOf())
+      .sort((a, b) => a - b)
+
+    return createTimeList[0] ? moment(createTimeList[0]) : time
   }
 
   @action
@@ -209,10 +249,22 @@ export default class Details extends React.Component {
     isTime,
     start,
   }) => {
-    this.active = { name, type, createTime }
+    this.active = { name, type, createTime, start }
     this.tableData = []
     this.customChartData = []
-    this.setActiveCrumb({ name, type, isCopy: !!isCopy, createTime })
+    this.timeRange = {}
+    this.setActiveCrumb({
+      name,
+      type,
+      isCopy: !!isCopy,
+      createTime,
+      start,
+    })
+
+    if (type === 'cluster' || type === 'workspaces') {
+      this.priceConfig = await this.store.fetchPrice()
+    }
+
     const params = this.getMeterParamsByCrumb()
 
     this.loading = true
@@ -229,9 +281,7 @@ export default class Details extends React.Component {
 
     this.tableData = this.setLineChartColor(meterData)
 
-    if (type === 'cluster' || type === 'workspaces') {
-      this.price_config = await this.store.fetchPrice()
-    }
+    this.setTimeRange({ isTime, start: handleStrTimeToX(start) })
 
     this.setAreaChartData({
       data: meterData,
@@ -285,7 +335,13 @@ export default class Details extends React.Component {
   }
 
   @action
-  getChildrenData = async ({ name, type, createTime, labelSelector }) => {
+  getChildrenData = async ({
+    name,
+    type,
+    createTime,
+    start,
+    labelSelector,
+  }) => {
     const lastCrumbData = last(this.crumbData)
     this.billReportList = []
     this.loading = true
@@ -296,7 +352,22 @@ export default class Details extends React.Component {
       this.cluster = get(this.clusters, '[0].value', '')
     }
 
-    this.setActiveCrumb({ name, type, isCopy: true, createTime })
+    if (type === 'cluster') {
+      this.crumbData[0].name = name
+      createTime = await this.getClusterCreateTime({
+        type,
+        time: createTime,
+      })
+      start = handleCreateTime(createTime, this.store.retentionDay)
+    }
+
+    this.setActiveCrumb({
+      name,
+      type,
+      isCopy: true,
+      createTime,
+      start,
+    })
 
     const childrenList = await this.getChildrenList({
       labelSelector,
@@ -314,7 +385,7 @@ export default class Details extends React.Component {
         meters: 'all',
         module: parentType.type,
         resources: [parentType.name],
-        start: handleStrTimeToX(createTime),
+        start: handleStrTimeToX(start),
         valueKey: 'parentMeterData',
         isTime: true,
       })
@@ -324,6 +395,7 @@ export default class Details extends React.Component {
         name: childrenList[0].name,
         list: childrenList,
         createTime: childrenList[0].createTime,
+        start: childrenList[0].startTime,
       })
 
       await this.getCurrentMeterData({
@@ -331,7 +403,7 @@ export default class Details extends React.Component {
         type: childrenType,
         isCopy: true,
         isTime: true,
-        start: childrenList[0].createTime,
+        start: childrenList[0].startTime,
         createTime: childrenList[0].createTime,
         labelSelector: get(childrenList, '[0].labelSelector'),
       })
@@ -344,11 +416,12 @@ export default class Details extends React.Component {
   }
 
   @action
-  setActiveCrumb = ({ name, type, createTime, isCopy }) => {
+  setActiveCrumb = ({ name, type, createTime, isCopy, start }) => {
     const lastCrumbData = last(this.crumbData)
     lastCrumbData.type = type
     lastCrumbData.name = name
     lastCrumbData.createTime = createTime
+    lastCrumbData.start = start
 
     if (isCopy) {
       this.cacheCrumbData = cloneDeep(toJS(this.crumbData))
@@ -403,6 +476,7 @@ export default class Details extends React.Component {
       sumData,
       feeData,
     }
+
     return result
   }
 
@@ -424,7 +498,7 @@ export default class Details extends React.Component {
   setAreaChartData = async ({ data }) => {
     this.chartData.loading = true
 
-    if (isEmpty(data) || isEmpty(this.price_config)) {
+    if (isEmpty(data) || isEmpty(this.priceConfig)) {
       this.chartData = { loading: false }
       return
     }
@@ -433,10 +507,14 @@ export default class Details extends React.Component {
       item.values = item.values.map(_item => {
         const value = get(_item, [1])
         const valueConvertedByUnit =
-          value === '-1' ? null : getValueByUnit(value, item.unit)
+          value === '-1' ? null : getValueByUnit(value, item.unit.value)
+        let priceUnit = this.priceConfig[item.type]
 
-        const valueConvertedByPrice =
-          valueConvertedByUnit * this.price_config[item.type]
+        if (item.type === 'net_transmitted' || item.type === 'net_received') {
+          priceUnit /= 1024
+        }
+
+        const valueConvertedByPrice = valueConvertedByUnit * priceUnit
 
         set(_item, [1], valueConvertedByPrice)
 
@@ -455,13 +533,8 @@ export default class Details extends React.Component {
       legend,
     }
 
-    this.timeRange = {
-      start: data[0].start,
-      end: data[0].end,
-      step: data[0].step,
-    }
-
     this.chartData = getAreaChartOps(_result)
+    this.chartData.data.shift()
     this.chartData.loading = false
   }
 
@@ -469,6 +542,7 @@ export default class Details extends React.Component {
   handleChartData = async ({ meters, ...params }) => {
     const { name } = this.active
     this.tableData = []
+    this.chartData.loading = true
 
     const data = await this.setMeterData({
       module: this.active.type,
@@ -525,11 +599,12 @@ export default class Details extends React.Component {
         if (item.type) {
           sumData[item.type] = {
             value: get(item, 'sum_value', ''),
-            unit: get(item, 'unit', ''),
+            unit: get(item, 'unit', 'label'),
           }
+
           feeData[item.type] = {
             value: parseFloat(get(item, 'fee', 0)).toFixed(2),
-            unit: t('￥'),
+            unit: { label: t('￥') },
           }
         }
       })
@@ -584,7 +659,7 @@ export default class Details extends React.Component {
       name,
       type,
       isCopy: true,
-      start: handleStrTimeToX(createTime),
+      ...toJS(this.timeRange),
       isTime: true,
       createTime,
       labelSelector: get(currentData, 'labelSelector', ''),
@@ -759,6 +834,7 @@ export default class Details extends React.Component {
   getWorkspacesMeterChartData = async meters => {
     this.customChartData = []
     const params = this.getMeterParamsByCrumb()
+
     const nameList = this.childrenResourceList.map(item => {
       return {
         name: item.name,
@@ -768,13 +844,16 @@ export default class Details extends React.Component {
     })
 
     const dataList = []
+
     RESOURCES_TYPE.forEach(itemType => {
       const list = []
+
       nameList.forEach(item => {
         if (item.type === itemType) {
           list.push(item)
         }
       })
+
       if (!isEmpty(list)) {
         dataList.push(list)
       }
@@ -783,9 +862,14 @@ export default class Details extends React.Component {
     const type = get(dataList, '0.0.type', '')
     if (type === 'namespaces') {
       const levelMeterReqList = []
+
       dataList[0].forEach(item => {
         if (item.type === 'namespaces') {
-          const _params = Object.assign(params, { namespaces: item.name })
+          const _params = Object.assign(params, {
+            namespaces: item.name,
+            cluster: this.cluster,
+          })
+
           levelMeterReqList.push(
             this.clusterMeterStore.fetchLevelMeter({ ..._params })
           )
@@ -846,7 +930,8 @@ export default class Details extends React.Component {
       step -= 1
     } else {
       const cacheStep = this.cacheCrumbData.length - 1
-      if (cacheStep === 0 || cacheStep === step) {
+
+      if (cacheStep <= 0 || cacheStep === step) {
         this.sideLoading = false
         return
       }
@@ -878,7 +963,7 @@ export default class Details extends React.Component {
         params,
         meters: 'all',
         module: parentData.type,
-        start: handleStrTimeToX(parentData.createTime),
+        start: handleStrTimeToX(parentData.start),
         resources: [parentData.name],
         valueKey: 'parentMeterData',
         isTime: true,
@@ -892,8 +977,8 @@ export default class Details extends React.Component {
     await this.getCurrentMeterData({
       name: currentActive.name,
       type: currentActive.type,
-      start: get(currentItem, 'createTime'),
-      createTime: get(currentItem, 'createTime'),
+      start: get(currentActive, 'start'),
+      createTime: get(currentActive, 'createTime'),
       labelSelector: get(currentItem, 'labelSelector', ''),
       isTime: true,
     })
@@ -918,6 +1003,7 @@ export default class Details extends React.Component {
       isTime: true,
       operation: 'export',
       ...params,
+      ...this.timeRange,
     })
 
     const name = this.billReportList.join('_')
@@ -1025,17 +1111,19 @@ export default class Details extends React.Component {
         <div className={styles.subTitle}>{t('Contains Resources')}</div>
         <div className={styles.childrenResourceContainer}>
           <Loading spinning={this.resourceLoading}>
-            <div className={styles.childrenlistContainer}>
-              <ResourceList
-                selectOptions={toJS(this.currentMeterData.sumData)}
-                childrenResourceList={this.childrenResourceList}
-                getResourceMeterData={this.getResourceMeterData}
-                activeName={this.active.name}
-              />
-            </div>
-            <div className={styles.constomChartContainer}>
-              <ConstomChart data={toJS(this.customChartData)} />
-            </div>
+            <>
+              <div className={styles.childrenlistContainer}>
+                <ResourceList
+                  selectOptions={toJS(this.currentMeterData.sumData)}
+                  childrenResourceList={this.childrenResourceList}
+                  getResourceMeterData={this.getResourceMeterData}
+                  activeName={this.active.name}
+                />
+              </div>
+              <div className={styles.constomChartContainer}>
+                <ConstomChart data={toJS(this.customChartData)} />
+              </div>
+            </>
           </Loading>
         </div>
       </>
@@ -1091,6 +1179,21 @@ export default class Details extends React.Component {
     set(this.timeRange, `${type}`, value)
   }
 
+  setTimeRange = ({ isTime, ...params }) => {
+    const { step, start, end } = getTimeParams({ isTime, ...params })
+
+    if (start >= end) {
+      this.timeRange = {}
+      return
+    }
+
+    this.timeRange = {
+      step: getTimeStr(step),
+      start: start * 1000,
+      end: end * 1000,
+    }
+  }
+
   @action
   getCheckData = name => {
     const hasResource = this.billReportList.indexOf(name) > -1
@@ -1103,7 +1206,6 @@ export default class Details extends React.Component {
 
   render() {
     const { type, name, createTime } = this.active
-    const { start, end, step } = this.timeRange
 
     return (
       <div className={styles.billDetail}>
@@ -1118,32 +1220,36 @@ export default class Details extends React.Component {
         </div>
         <div className={styles.rightContent}>
           <Loading spinning={this.loading}>
-            {this.renderTitle()}
-            <div className={styles.content}>
-              <MeterDetailCard
-                className={styles.toothbg}
-                title={
-                  <>
-                    <span>{t(RESOURCE_TITLE[type])}</span>
-                    <strong>{name}</strong>
-                  </>
-                }
-                {...this.currentMeterData}
-              />
-              <div className={styles.subTitle}>{t('Consumption History')}</div>
-              <div className={styles.info}>
-                <TimeSelect
-                  createTime={createTime}
-                  getTime={this.getTimeRange}
-                  start={start}
-                  end={end}
-                  step={step}
+            <>
+              {this.renderTitle()}
+              <div className={styles.content}>
+                <MeterDetailCard
+                  className={styles.toothbg}
+                  title={
+                    <>
+                      <span>{t(RESOURCE_TITLE[type])}</span>
+                      <strong>{name}</strong>
+                    </>
+                  }
+                  {...this.currentMeterData}
                 />
+                <div className={styles.subTitle}>
+                  {t('Consumption History')}
+                </div>
+                <div className={styles.info}>
+                  {!isEmpty(toJS(this.timeRange)) ? (
+                    <TimeSelect
+                      createTime={createTime}
+                      getTime={this.getTimeRange}
+                      timeRange={this.timeRange}
+                    />
+                  ) : null}
+                </div>
+                {this.renderChart()}
+                <MeterTable data={toJS(this.tableData)} />
+                {this.renderSubResource()}
               </div>
-              {this.renderChart()}
-              <MeterTable data={toJS(this.tableData)} />
-              {this.renderSubResource()}
-            </div>
+            </>
           </Loading>
         </div>
       </div>

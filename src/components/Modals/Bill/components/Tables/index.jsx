@@ -19,15 +19,13 @@
 import React from 'react'
 import Table from 'components/Tables/Base'
 
-import { isEmpty } from 'lodash'
+import { isEmpty, get } from 'lodash'
 import { Tooltip, Icon } from '@kube-design/components'
 
 import { METER_RESOURCE_TITLE } from '../../constats'
 import styles from './index.scss'
 
 export default class MeterTable extends React.Component {
-  componentDidMount() {}
-
   renderTooltipContent = () => {
     return (
       <div className={styles.tooltipContent}>
@@ -49,7 +47,7 @@ export default class MeterTable extends React.Component {
                 style={{
                   background: record.color,
                 }}
-              ></span>
+              />
               {t(METER_RESOURCE_TITLE[value])}
             </>
           )
@@ -61,7 +59,7 @@ export default class MeterTable extends React.Component {
         render: (value, record) => {
           return (
             <>
-              {value} {record.unit}
+              {value} {get(record, 'unit.label', '-')}
             </>
           )
         },
@@ -69,11 +67,10 @@ export default class MeterTable extends React.Component {
       {
         title: t('Min Usage'),
         dataIndex: 'min_value',
-
         render: (value, record) => {
           return (
             <>
-              {value} {record.unit}
+              {value} {get(record, 'unit.label', '-')}
             </>
           )
         },
@@ -84,7 +81,7 @@ export default class MeterTable extends React.Component {
         render: (value, record) => {
           return (
             <>
-              {value} {record.unit}
+              {value} {get(record, 'unit.label', '-')}
             </>
           )
         },
@@ -102,7 +99,7 @@ export default class MeterTable extends React.Component {
         render: (value, record) => {
           return (
             <>
-              {value} {record.unit}
+              {value} {get(record, 'unit.label', '-')}
             </>
           )
         },

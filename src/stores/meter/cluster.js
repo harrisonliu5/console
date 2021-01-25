@@ -37,6 +37,7 @@ import {
   filterListByType,
   getFetchParams,
   getListConfig,
+  handleCreateTime,
 } from 'utils/meter'
 
 import Base from './base'
@@ -178,12 +179,18 @@ export default class ClusterMeter extends Base {
                 : status(item)
               : undefined
 
+            const startTime = handleCreateTime(
+              item.createTime,
+              this.retentionDay
+            )
+
             data.push({
               icon: ICON_TYPES[type],
               name: item.name,
               status: _status,
               desc: t(desc),
               createTime: item.createTime,
+              startTime,
               labelSelector: item.selector,
               type,
               _origin: { ...item },
@@ -210,16 +217,18 @@ export default class ClusterMeter extends Base {
   }
 
   @action
-  fetchLevelMeter = async ({ cluster, namespaces }) => {
+  fetchLevelMeter = async ({ cluster, namespaces, workspaces }) => {
     if (cluster) {
       this.cluster = cluster
     }
     const url = `${this.tenantUrl}${this.getPaths({
       module,
       namespaces,
-    })}/metering_hierarchy`
+    })}/metering_hierarchy${workspaces ? `?workspace=${workspaces}` : ''}`
 
-    const result = await request.get(url, {}, {}, () => {})
+    const result = await request.get(url, {}, {}, () => {
+      return {}
+    })
     const data =
       !isUndefined(result) && !isEmpty(result) ? { [namespaces]: result } : {}
 

@@ -23,54 +23,83 @@ import { DatePicker, Select, Notify } from '@kube-design/components'
 import { getTimeOptions } from 'components/Cards/Monitoring/Controller/TimeSelector/utils'
 import cookie from 'utils/cookie'
 
+import moment from 'moment-mini'
 import styles from './index.scss'
 
-const TimeOps = ['1h', '2h', '5h', '8h', '1d']
+const TimeOps = ['1h', '2h', '4h', '8h', '1d']
+
+const format = cookie('lang') === 'zh' ? 'Y年Md日 H:i' : 'M d, Y H:i'
+const timeFormat =
+  cookie('lang') === 'zh' ? 'YYYY年MM月DD日 HH:mm' : 'MMM DD, YYYY HH:mm'
 
 export default class TimeSelect extends React.Component {
-  static defaultProps = {
-    start: '',
-    end: '',
-    step: '',
-    createTime: '',
+  constructor(props) {
+    super(props)
+
+    const { timeRange } = this.props
+    const end = timeRange.end || new Date()
+
+    this.endMaxDate = new Date(end)
+    this.maxDate = new Date(moment(end).subtract(1, 'minutes'))
+    this.minDate = new Date(timeRange.start)
   }
 
   getTimeRange = ({ type, methord }) => selectedDates => {
-    const { getTime, start, end } = this.props
+    const { getTime, timeRange } = this.props
+    const { end, start } = timeRange
+    const time = new Date(selectedDates[0]).getTime()
 
-    if (type === 'step') {
-      const _step = selectedDates
-      const day = Math.floor((end - start) / 3600 / 24 / 1000)
-
-      if (day >= 30) {
-        Notify.error({ content: t('TIMERANGE_MORE_30DAY_MSG') })
-      }
-
-      getTime({ type, value: _step, methord })
-    } else {
-      const time = new Date(selectedDates[0]).getTime()
-      if (
-        (type === 'start' && time > end) ||
-        (type === 'end' && time < start)
-      ) {
-        Notify.error({ content: t('TIMERANGE_SELECTOR_MSG') })
-        return
-      }
-
-      getTime({ type, value: time, methord })
+    if ((type === 'start' && time > end) || (type === 'end' && time < start)) {
+      return
     }
+
+    getTime({ type, value: time, methord })
   }
 
-  setTimeRange = type => selectedDates => {
+  handleStepChange = ({ type, methord }) => value => {
+    const _step = value
+    const { getTime, timeRange } = this.props
+    const { end, start } = timeRange
+
+    const day = Math.floor((end - start) / 3600 / 24 / 1000)
+
+    if (day >= 30 && _step !== '1d') {
+      Notify.error({ content: t('TIMERANGE_MORE_30DAY_MSG') })
+      return
+    }
+
+    getTime({ type, value: _step, methord })
+  }
+
+  handleTimeRangeChange = type => selectedDates => {
+    const { getTime, timeRange } = this.props
+    const { end, start, step } = timeRange
     const time = new Date(selectedDates[0]).getTime()
-    this.props.getTime({ type, value: time, methord: 'change' })
+
+    if ((type === 'start' && time > end) || (type === 'end' && time < start)) {
+      Notify.error({ content: t('TIMERANGE_SELECTOR_MSG') })
+      return
+    }
+
+    if (type === 'start') {
+      const day = Math.floor((end - time) / 3600 / 24 / 1000)
+      if (day >= 30 && step !== '1d') {
+        getTime({ type: 'step', value: '1d', methord: 'change' })
+      }
+    }
+
+    if (type === 'end') {
+      const day = Math.floor((time - start) / 3600 / 24 / 1000)
+      if (day >= 30 && step !== '1d') {
+        getTime({ type: 'step', value: '1d', methord: 'change' })
+      }
+    }
+    getTime({ type, value: time, methord: 'change' })
   }
 
   render() {
-    const { createTime, start, end, step } = this.props
-    const format = cookie('lang') === 'zh' ? 'Y年Md日 H:i' : 'M d, Y H:i'
-    const timeFormat =
-      cookie('lang') === 'zh' ? 'YYYY年MM月DD日 HH:mm' : 'MMM DD, YYYY HH:mm'
+    const { createTime, timeRange } = this.props
+    const { step, start, end } = timeRange
 
     const createTimeStr = createTime
       ? getLocalTime(createTime).format(timeFormat)
@@ -87,15 +116,17 @@ export default class TimeSelect extends React.Component {
         <li>
           <div>
             <DatePicker
+              defaultValue={start}
               value={start}
-              enableTime
               showClearBtn={false}
               dateFormat={format}
+              minDate={this.minDate}
+              maxDate={this.maxDate}
               onClose={this.getTimeRange({
                 type: 'start',
                 methord: 'close',
               })}
-              onChange={this.setTimeRange('start')}
+              onChange={this.handleTimeRangeChange('start')}
             />
           </div>
           <p>{t('Start Time')}</p>
@@ -103,15 +134,17 @@ export default class TimeSelect extends React.Component {
         <li>
           <div>
             <DatePicker
+              defaultValue={end}
               value={end}
-              enableTime
               showClearBtn={false}
               dateFormat={format}
+              minDate={this.minDate}
+              maxDate={this.endMaxDate}
               onClose={this.getTimeRange({
                 type: 'end',
                 methord: 'close',
               })}
-              onChange={this.setTimeRange('end')}
+              onChange={this.handleTimeRangeChange('end')}
             />
           </div>
           <p>{t('End Time')}</p>
@@ -121,7 +154,10 @@ export default class TimeSelect extends React.Component {
             <Select
               value={step}
               options={getTimeOptions(TimeOps)}
-              onChange={this.getTimeRange({ type: 'step', methord: 'close' })}
+              onChange={this.handleStepChange({
+                type: 'step',
+                methord: 'close',
+              })}
             />
           </div>
           <p>{t('Time Interval')}</p>

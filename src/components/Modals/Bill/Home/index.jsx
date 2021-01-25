@@ -51,7 +51,6 @@ export default function Home({ handleSelected, cardConfigRule }) {
       </Button>
     </>
   )
-
   const renderNav = () => {
     return (
       <div className={styles.nav}>
@@ -61,11 +60,12 @@ export default function Home({ handleSelected, cardConfigRule }) {
       </div>
     )
   }
-
   return (
     <div className={styles.billHome}>
-      {renderNav()}
-      <div className={styles.container}>{renderCard()}</div>
+      <div className={styles.billHome__container}>
+        {renderNav()}
+        <div className={styles.container}>{renderCard()}</div>
+      </div>
     </div>
   )
 }

@@ -21,7 +21,7 @@ export default {
   'Consumption History': '消費歷史',
   'Reconciliation Cycle': '對賬週期',
   'Consumer Trends': '消費者趨勢',
-  'Contains Resources': '包含資源',
+  'Contains Resources': '當前包含資源',
   Trend: '趨勢圖',
   'Average Usage': '平均用量',
   'Total Consumption': '共消費',

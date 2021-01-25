@@ -104,7 +104,17 @@ export default class KubeTools extends React.Component {
             title: t('Bill'),
             description: t('BILLING_OPERATING_DESC'),
             link: '/bill',
-            hidden: false,
+            hidden:
+              !(
+                globals.app.hasPermission({
+                  module: 'workspaces',
+                  action: 'view',
+                }) || !isEmpty(globals.user.workspaces)
+              ) &&
+              !globals.app.hasPermission({
+                module: 'clusters',
+                action: 'view',
+              }),
             action: 'toolbox.bill',
           },
         ],

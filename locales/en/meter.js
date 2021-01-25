@@ -15,13 +15,13 @@
  * You should have received a copy of the GNU Affero General Public License
  * along with KubeSphere Console.  If not, see <https://www.gnu.org/licenses/>.
  */
-export default {
+module.exports = {
   'Consumption Bill': 'Consumption Bill',
   'Export Bill': 'Export Records',
   'Consumption History': 'Consumption History',
   'Reconciliation Cycle': 'Reconciliation Cycle',
   'Consumer Trends': 'Consumer Trends',
-  'Contains Resources': 'Contains Resources',
+  'Contains Resources': 'Currently Contains Resources',
   Trend: 'Trend',
   'Average Usage': 'Average Usage',
   'Total Consumption': 'Total Consumption',
